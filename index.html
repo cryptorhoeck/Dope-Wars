@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0a0a0a">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<title>Dope Wars: Moncton</title>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{--green:#33ff33;--dim-green:#1a8a1a;--red:#ff4444;--yellow:#ffcc00;--cyan:#00ccff;--orange:#ff8800;--bg:#0a0a0a;--panel:#111;--panel2:#1a1a1a;--border:#2a2a2a;--text:#ccc;--text-dim:#666;--safe-top:env(safe-area-inset-top,0px);--safe-bottom:env(safe-area-inset-bottom,0px)}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:'VT323',monospace;font-size:18px;overflow:hidden;touch-action:manipulation;-webkit-tap-highlight-color:transparent;user-select:none}
+body{display:flex;flex-direction:column;padding-top:var(--safe-top);padding-bottom:var(--safe-bottom)}
+body::after{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.06) 2px,rgba(0,0,0,0.06) 4px);pointer-events:none;z-index:9999}
+.screen{display:none;flex-direction:column;height:100%;overflow-y:auto;overflow-x:hidden}.screen.active{display:flex}
+.screen::-webkit-scrollbar{width:4px}.screen::-webkit-scrollbar-track{background:var(--bg)}.screen::-webkit-scrollbar-thumb{background:var(--dim-green)}
+#title-screen{justify-content:center;align-items:center;gap:20px;padding:20px;background:radial-gradient(ellipse at center,#111 0%,#0a0a0a 70%)}
+.title-logo{font-family:'Press Start 2P',monospace;font-size:24px;color:var(--green);text-shadow:0 0 20px rgba(51,255,51,0.4),3px 3px 0 #0a5a0a;text-align:center;line-height:1.8;animation:flicker 4s infinite}
+.title-sub{font-family:'Press Start 2P',monospace;font-size:10px;color:var(--yellow);text-align:center;letter-spacing:3px;text-shadow:0 0 10px rgba(255,204,0,0.3)}
+@keyframes flicker{0%,93%,100%{opacity:1}94%{opacity:0.7}96%{opacity:1}97%{opacity:0.5}}
+.btn{background:none;border:2px solid var(--green);color:var(--green);font-family:'Press Start 2P',monospace;font-size:10px;padding:12px 24px;cursor:pointer;text-transform:uppercase;transition:all 0.1s;width:100%;max-width:280px;text-align:center}
+.btn:active{background:var(--green);color:var(--bg);transform:scale(0.97)}.btn.red{border-color:var(--red);color:var(--red)}.btn.red:active{background:var(--red);color:var(--bg)}.btn.yellow{border-color:var(--yellow);color:var(--yellow)}.btn.yellow:active{background:var(--yellow);color:var(--bg)}.btn.cyan{border-color:var(--cyan);color:var(--cyan)}.btn.cyan:active{background:var(--cyan);color:var(--bg)}.btn.small{font-size:8px;padding:8px 16px}.btn:disabled{opacity:0.3;pointer-events:none}
+#setup-screen{padding:20px;gap:16px;align-items:center;justify-content:center}
+.setup-label{font-family:'Press Start 2P',monospace;font-size:10px;color:var(--green);text-align:center}
+.setup-input{background:var(--panel);border:2px solid var(--green);color:var(--green);font-family:'VT323',monospace;font-size:24px;padding:10px;text-align:center;width:100%;max-width:280px;outline:none}
+.setup-input:focus{box-shadow:0 0 10px rgba(51,255,51,0.3)}
+.diff-btns{display:flex;gap:8px;width:100%;max-width:280px}
+.diff-btn{flex:1;background:none;border:2px solid var(--border);color:var(--text-dim);font-family:'Press Start 2P',monospace;font-size:8px;padding:10px 4px;cursor:pointer;text-align:center;transition:all 0.1s}
+.diff-btn.selected{border-color:var(--green);color:var(--green);background:rgba(51,255,51,0.1)}.diff-btn:active{transform:scale(0.97)}
+.stats-bar{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:2px;padding:6px 8px;background:var(--panel);border-bottom:2px solid var(--border);flex-shrink:0}
+.stat{text-align:center;font-size:14px}.stat-label{font-family:'Press Start 2P',monospace;font-size:6px;color:var(--text-dim);display:block;margin-bottom:2px}
+.stat-val{font-weight:bold}.stat-val.cash{color:var(--green)}.stat-val.health{color:var(--cyan)}.stat-val.heat{color:var(--red)}.stat-val.day{color:var(--yellow)}
+.stats-bar2{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:2px;padding:4px 8px;background:var(--panel2);border-bottom:1px solid var(--border);flex-shrink:0}
+.stat2{text-align:center;font-size:13px}.stat2 .stat-label{font-size:6px}
+.loc-header{padding:8px 12px;background:var(--panel2);border-bottom:1px solid var(--border);flex-shrink:0;display:flex;justify-content:space-between;align-items:center}
+.loc-name{font-family:'Press Start 2P',monospace;font-size:11px;color:var(--yellow)}.loc-vibe{font-size:14px;color:var(--text-dim)}
+.actions{display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:8px;flex-shrink:0}
+.action-btn{background:var(--panel);border:1px solid var(--border);color:var(--text);font-family:'VT323',monospace;font-size:18px;padding:12px 8px;cursor:pointer;text-align:center;transition:all 0.1s}
+.action-btn:active{background:var(--border);transform:scale(0.97)}.action-btn .icon{font-size:20px;display:block;margin-bottom:2px}.action-btn:disabled{opacity:0.25;pointer-events:none}
+.market-item{display:grid;grid-template-columns:1fr auto auto;align-items:center;padding:8px;margin-bottom:4px;background:var(--panel);border:1px solid var(--border)}
+.drug-name{font-family:'Press Start 2P',monospace;font-size:8px;color:var(--text)}.drug-price{font-size:16px;color:var(--green);text-align:right;padding:0 8px;min-width:70px}
+.drug-btns{display:flex;gap:4px}.drug-btn{background:none;border:1px solid var(--green);color:var(--green);font-family:'VT323',monospace;font-size:16px;padding:4px 10px;cursor:pointer}
+.drug-btn.sell{border-color:var(--red);color:var(--red)}.drug-btn:active{transform:scale(0.95)}.drug-btn:disabled{opacity:0.2;pointer-events:none}
+.travel-dest{padding:10px;margin-bottom:6px;background:var(--panel);border:1px solid var(--border);cursor:pointer;display:flex;justify-content:space-between;align-items:center}
+.travel-dest:active{background:var(--border)}.travel-dest .name{font-family:'Press Start 2P',monospace;font-size:9px}.travel-dest .vibe{font-size:14px;color:var(--text-dim)}.travel-dest.current{border-color:var(--yellow);opacity:0.4;pointer-events:none}
+.method-btn{display:flex;justify-content:space-between;align-items:center;padding:12px;margin-bottom:6px;background:var(--panel);border:1px solid var(--border);cursor:pointer;font-family:'VT323',monospace;font-size:18px;color:var(--text)}
+.method-btn:active{background:var(--border)}.method-btn .cost{color:var(--green)}.method-btn .risk{font-size:14px;color:var(--text-dim)}.method-btn:disabled{opacity:0.3;pointer-events:none}
+.modal-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.85);z-index:100;justify-content:center;align-items:center;padding:20px}
+.modal-overlay.active{display:flex}.modal{background:var(--panel);border:2px solid var(--green);padding:20px;max-width:340px;width:100%;max-height:80vh;overflow-y:auto}
+.modal h2{font-family:'Press Start 2P',monospace;font-size:12px;color:var(--yellow);margin-bottom:12px;text-align:center}
+.modal p{font-size:18px;margin-bottom:12px;line-height:1.4;text-align:center}.modal .btn{margin-top:8px}
+.modal-buttons{display:flex;flex-direction:column;gap:8px;align-items:center}
+.qty-controls{display:flex;align-items:center;justify-content:center;gap:8px;margin:12px 0}
+.qty-btn{background:none;border:2px solid var(--green);color:var(--green);font-family:'VT323',monospace;font-size:22px;width:38px;height:38px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.qty-btn:active{background:var(--green);color:var(--bg)}.qty-display{font-family:'Press Start 2P',monospace;font-size:14px;color:var(--green);min-width:50px;text-align:center}
+.qty-info{font-size:16px;color:var(--text-dim);text-align:center}
+.qty-max-btn{background:none;border:1px solid var(--yellow);color:var(--yellow);font-family:'VT323',monospace;font-size:14px;padding:4px 12px;cursor:pointer;margin:4px auto;display:block}
+.screen-header{display:flex;align-items:center;padding:8px 12px;background:var(--panel);border-bottom:2px solid var(--border);flex-shrink:0}
+.back-btn{background:none;border:none;color:var(--green);font-family:'VT323',monospace;font-size:22px;cursor:pointer;padding:4px 8px;margin-right:8px}
+.screen-title{font-family:'Press Start 2P',monospace;font-size:11px;color:var(--green)}
+.action-screen{padding:16px;flex:1;display:flex;flex-direction:column;gap:12px;align-items:center}
+.action-screen .info{font-size:18px;text-align:center;color:var(--text-dim)}
+.action-screen .amount{font-family:'Press Start 2P',monospace;font-size:14px;color:var(--green);text-align:center}
+.action-screen .amount.debt{color:var(--red)}
+.shop-item{display:flex;justify-content:space-between;align-items:center;padding:10px;margin-bottom:6px;background:var(--panel);border:1px solid var(--border);flex-wrap:wrap}
+.shop-item .item-name{font-family:'Press Start 2P',monospace;font-size:8px;color:var(--text)}.shop-item .item-desc{font-size:14px;color:var(--text-dim)}
+.shop-buy-btn{background:none;border:1px solid var(--green);color:var(--green);font-family:'VT323',monospace;font-size:16px;padding:4px 12px;cursor:pointer}
+.shop-buy-btn:active{background:var(--green);color:var(--bg)}.shop-buy-btn:disabled{opacity:0.3;pointer-events:none}
+#gameover-screen{padding:20px;align-items:center;gap:8px}
+#gameover-screen h1{font-family:'Press Start 2P',monospace;font-size:16px;color:var(--red);text-align:center;margin-top:20px}
+#gameover-screen h1.win{color:var(--green)}
+.go-stats{width:100%;max-width:340px}.go-stat{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-size:17px}
+.go-stat .label{color:var(--text-dim)}.go-stat .value{color:var(--green)}.go-stat .value.negative{color:var(--red)}
+.score-entry{display:grid;grid-template-columns:30px 1fr auto;padding:8px 0;border-bottom:1px solid var(--border);font-size:16px;align-items:center}
+.score-rank{color:var(--yellow);font-family:'Press Start 2P',monospace;font-size:8px}.score-name{color:var(--text)}.score-cash{color:var(--green);font-family:'Press Start 2P',monospace;font-size:8px}
+.weapon-info{font-size:14px;color:var(--orange);text-align:center;padding:4px}
+html.low-hp .stat-val.health{animation:hpFlash 0.5s infinite}
+@keyframes hpFlash{0%,100%{color:var(--cyan)}50%{color:var(--red)}}
+.w-full{width:100%;max-width:280px}.text-green{color:var(--green)}.text-red{color:var(--red)}.text-yellow{color:var(--yellow)}.text-cyan{color:var(--cyan)}.text-orange{color:var(--orange)}
+</style>
+</head>
+<body>
+<div id="title-screen" class="screen active">
+  <div class="title-logo">DOPE<br>WARS</div>
+  <div class="title-sub">- MONCTON -</div>
+  <div style="height:40px"></div>
+  <button class="btn" onclick="showScreen('setup-screen')">NEW GAME</button>
+  <button class="btn yellow" onclick="showScores()">HIGH SCORES</button>
+</div>
+<div id="setup-screen" class="screen">
+  <div class="setup-label">ENTER YOUR NAME</div>
+  <input class="setup-input" id="name-input" type="text" maxlength="12" placeholder="DEALER NAME" autocomplete="off">
+  <div style="height:12px"></div>
+  <div class="setup-label">DIFFICULTY</div>
+  <div class="diff-btns">
+    <button class="diff-btn" data-diff="easy" onclick="selectDiff(this)">EASY</button>
+    <button class="diff-btn selected" data-diff="normal" onclick="selectDiff(this)">NORMAL</button>
+    <button class="diff-btn" data-diff="hard" onclick="selectDiff(this)">HARD</button>
+  </div>
+  <div style="height:20px"></div>
+  <button class="btn" onclick="startGame()">START HUSTLING</button>
+  <button class="btn red small" style="margin-top:8px;max-width:280px" onclick="showScreen('title-screen')">BACK</button>
+</div>
+<div id="game-screen" class="screen">
+  <div class="stats-bar">
+    <div class="stat"><span class="stat-label">CASH</span><span class="stat-val cash" id="s-cash">$2,000</span></div>
+    <div class="stat"><span class="stat-label">HEALTH</span><span class="stat-val health" id="s-health">100</span></div>
+    <div class="stat"><span class="stat-label">HEAT</span><span class="stat-val heat" id="s-heat">0</span></div>
+    <div class="stat"><span class="stat-label">DAY</span><span class="stat-val day" id="s-day">1/30</span></div>
+  </div>
+  <div class="stats-bar2">
+    <div class="stat2"><span class="stat-label">BANK</span><span id="s-bank">$0</span></div>
+    <div class="stat2"><span class="stat-label">DEBT</span><span class="text-red" id="s-debt">$5,500</span></div>
+    <div class="stat2"><span class="stat-label">REP</span><span class="text-orange" id="s-rep">0</span></div>
+    <div class="stat2"><span class="stat-label">PACK</span><span id="s-inv">0/100</span></div>
+  </div>
+  <div class="loc-header">
+    <span class="loc-name" id="s-loc">Lewisville</span>
+    <span class="loc-vibe" id="s-vibe">Quiet suburban</span>
+  </div>
+  <div id="weapon-bar" class="weapon-info" style="display:none"></div>
+  <div class="actions" id="action-grid">
+    <button class="action-btn" onclick="showTravel()"><span class="icon">🚶</span>Travel</button>
+    <button class="action-btn" id="btn-market" onclick="showMarket()"><span class="icon">💊</span>Buy / Sell</button>
+    <button class="action-btn" onclick="showBank()"><span class="icon">🏦</span>Bank</button>
+    <button class="action-btn" onclick="showLoan()"><span class="icon">🦈</span>Loan Shark</button>
+    <button class="action-btn" onclick="showHeal()"><span class="icon">🩹</span>Heal</button>
+    <button class="action-btn" onclick="showShop()"><span class="icon">🔫</span>Shop</button>
+    <button class="action-btn" onclick="showStash()"><span class="icon">📦</span>Stash</button>
+    <button class="action-btn" onclick="layLow()"><span class="icon">😎</span>Lay Low</button>
+  </div>
+  <div id="event-log" style="flex:1;overflow-y:auto;padding:8px;font-size:15px;color:var(--text-dim)"></div>
+</div>
+<div id="travel-screen" class="screen">
+  <div class="screen-header"><button class="back-btn" onclick="showScreen('game-screen')">←</button><span class="screen-title">TRAVEL</span></div>
+  <div id="travel-phase1" style="padding:8px;flex:1;overflow-y:auto"></div>
+  <div id="travel-phase2" style="padding:8px;display:none"></div>
+</div>
+<div id="market-screen" class="screen">
+  <div class="screen-header"><button class="back-btn" onclick="showScreen('game-screen')">←</button><span class="screen-title">BUY / SELL</span></div>
+  <div style="flex:1;overflow-y:auto;padding:8px" id="market-list"></div>
+</div>
+<div id="bank-screen" class="screen">
+  <div class="screen-header"><button class="back-btn" onclick="showScreen('game-screen')">←</button><span class="screen-title">BANK</span></div>
+  <div class="action-screen">
+    <div class="info">Safe storage. No interest.</div>
+    <div class="amount" id="bank-balance">Balance: $0</div>
+    <div class="amount" id="bank-cash">Cash: $2,000</div>
+    <div class="qty-controls"><button class="qty-btn" onclick="bankQty(-100)">--</button><button class="qty-btn" onclick="bankQty(-10)">-</button><span class="qty-display" id="bank-qty">$0</span><button class="qty-btn" onclick="bankQty(10)">+</button><button class="qty-btn" onclick="bankQty(100)">++</button></div>
+    <button class="qty-max-btn" onclick="bankMax()">MAX DEPOSIT</button>
+    <button class="btn w-full" onclick="bankAction()">CONFIRM</button>
+  </div>
+</div>
+<div id="loan-screen" class="screen">
+  <div class="screen-header"><button class="back-btn" onclick="showScreen('game-screen')">←</button><span class="screen-title">LOAN SHARK</span></div>
+  <div class="action-screen">
+    <div class="info">Pay off your debt before it eats you alive.</div>
+    <div class="amount debt" id="loan-debt">Debt: $5,500</div>
+    <div class="amount" id="loan-cash">Cash: $2,000</div>
+    <div class="qty-controls"><button class="qty-btn" onclick="loanQty(-100)">--</button><button class="qty-btn" onclick="loanQty(-10)">-</button><span class="qty-display" id="loan-qty">$0</span><button class="qty-btn" onclick="loanQty(10)">+</button><button class="qty-btn" onclick="loanQty(100)">++</button></div>
+    <button class="qty-max-btn" onclick="loanMax()">PAY MAX</button>
+    <button class="btn red w-full" onclick="loanAction()">PAY DEBT</button>
+  </div>
+</div>
+<div id="heal-screen" class="screen">
+  <div class="screen-header"><button class="back-btn" onclick="showScreen('game-screen')">←</button><span class="screen-title">HEAL</span></div>
+  <div class="action-screen" id="heal-options"></div>
+</div>
+<div id="shop-screen" class="screen">
+  <div class="screen-header"><button class="back-btn" onclick="showScreen('game-screen')">←</button><span class="screen-title">SHOP</span></div>
+  <div style="flex:1;overflow-y:auto;padding:8px" id="shop-list"></div>
+</div>
+<div id="stash-screen" class="screen">
+  <div class="screen-header"><button class="back-btn" onclick="showScreen('game-screen')">←</button><span class="screen-title">STASH HOUSE</span></div>
+  <div style="flex:1;overflow-y:auto;padding:8px" id="stash-content"></div>
+</div>
+<div id="gameover-screen" class="screen"></div>
+<div id="scores-screen" class="screen">
+  <div class="screen-header"><button class="back-btn" onclick="showScreen('title-screen')">←</button><span class="screen-title">HIGH SCORES</span></div>
+  <div style="padding:16px" id="scores-list"></div>
+</div>
+<div class="modal-overlay" id="modal"><div class="modal" id="modal-content"></div></div>
+<div class="modal-overlay" id="qty-modal"><div class="modal" id="qty-modal-content"></div></div>
+<script>
+const DRUGS=[{id:'weed',name:'Weed',unit:'g',min:8,max:12},{id:'xanax',name:'Xanax',unit:'pill',min:5,max:10},{id:'percs',name:'Percs',unit:'pill',min:10,max:20},{id:'molly',name:'Molly',unit:'cap',min:10,max:25},{id:'oxy',name:'Oxy',unit:'pill',min:20,max:50},{id:'dillies',name:'Dillies',unit:'pill',min:15,max:30},{id:'crack',name:'Crack',unit:'rock',min:20,max:40},{id:'meth',name:'Meth',unit:'g',min:60,max:150},{id:'cocaine',name:'Cocaine',unit:'g',min:80,max:120},{id:'heroin',name:'Heroin',unit:'g',min:80,max:200}];
+const LOCATIONS=[{id:'lewisville',name:'Lewisville',vibe:'Quiet suburban',danger:.1,rcmp:.15,priceMod:1.1,supplyMod:.7},{id:'stgeorge',name:'St George',vibe:'Rough',danger:.7,rcmp:.45,priceMod:.95,supplyMod:1.2},{id:'dogpatch',name:'The Dogpatch',vibe:'Sketchy',danger:.6,rcmp:.35,priceMod:.9,supplyMod:1.15},{id:'joyce',name:'Joyce Avenue',vibe:'NB Housing',danger:.4,rcmp:.35,priceMod:1,supplyMod:1},{id:'pinetree',name:'Pinetree TP',vibe:'Nice trailer park',danger:.2,rcmp:.15,priceMod:1.05,supplyMod:.85},{id:'ackmin',name:'Ackmin Court',vibe:'Crackhead central',danger:.9,rcmp:.1,priceMod:.75,supplyMod:1.4},{id:'lakeside',name:'Lakeside Estates',vibe:'Sketch trailer park',danger:.7,rcmp:.25,priceMod:.9,supplyMod:1.2},{id:'marshes',name:'Marshes TP',vibe:'Dirtbag TP',danger:.85,rcmp:.1,priceMod:.8,supplyMod:1.15},{id:'cornhill',name:'Cornhill',vibe:'Meth heads',danger:.85,rcmp:.1,priceMod:.85,supplyMod:1.1},{id:'mall',name:'Champlain Mall',vibe:'Shopping hub',danger:0,rcmp:.35,priceMod:1,supplyMod:0,isShop:true}];
+const TRAVEL=[{id:'walk',name:'Walking',cost:0,risk:1.5,desc:'Free but risky'},{id:'bus',name:'Codiac Transit',cost:4,risk:.7,desc:'$3.50 - might be late'},{id:'buddy',name:"Buddy's Beater",cost:20,risk:.5,desc:'$15-25 - might break down'},{id:'cab',name:'Cab / Uber',cost:40,risk:0,desc:'$30-50 - safe & fast'}];
+const WEAPONS=[{id:'knife',name:'Knife',bonus:.15,cost:75,desc:'+15% fight'},{id:'bat',name:'Baseball Bat',bonus:.2,cost:150,desc:'+20% fight'},{id:'pistol',name:'Pistol',bonus:.35,cost:500,desc:'+35% fight'},{id:'shotgun',name:'Shotgun',bonus:.5,cost:1000,desc:'+50% fight'}];
+const INV_UP=[{id:'backpack',name:'Backpack',cap:50,cost:200,desc:'+50 slots'},{id:'duffel',name:'Duffel Bag',cap:100,cost:500,desc:'+100 slots'},{id:'trunk',name:'Car Trunk',cap:200,cost:1200,desc:'+200 slots'}];
+const EVENTS=[
+{msg:"Concert at the Avenir Centre tonight — Molly demand skyrockets!",fx:'spike',drug:'molly',m:4},
+{msg:"Huge RCMP bust on Main Street — cocaine prices tripled!",fx:'spike',drug:'cocaine',m:3},
+{msg:"Someone flooded Ackmin Court with cheap meth — prices cratered.",fx:'crash',drug:'meth',m:.3},
+{msg:"Tidal bore tourists flooding downtown — RCMP presence doubled!",fx:'heat',v:20},
+{msg:"Power outage in the south end — everything's cheaper today.",fx:'all_crash',m:.6},
+{msg:"Codiac Transit work-to-rule — bus costs double.",fx:'bus2x'},
+{msg:"Kid OD'd in the park — heroin demand crashed hard.",fx:'crash',drug:'heroin',m:.4},
+{msg:"Welfare cheques dropped — everyone's buying, prices are up!",fx:'all_spike',m:1.5},
+{msg:"Dealer got pinched with pills — Oxy just got scarce.",fx:'spike',drug:'oxy',m:3},
+{msg:"You found a bag with some cash on the ground!",fx:'cash',v:150},
+{msg:"A sketchy dude offers to patch you up for $200.",fx:'doc'},
+{msg:"Your buddy hooked you up with a free ride today!",fx:'free'},
+{msg:"Pill press from Montreal — Xanax flooding the streets.",fx:'crash',drug:'xanax',m:.35},
+{msg:"Long weekend PEI crowd in town — party drug prices way up!",fx:'spike',drug:'molly',m:3.5},
+{msg:"RCMP cruiser doing slow laps. Stay cool.",fx:'heat',v:8},
+{msg:"A regular tipped you off — Heroin about to dry up.",fx:'spike',drug:'heroin',m:3},
+{msg:"Someone's been talking. Word got around about you.",fx:'heat',v:12},
+{msg:"Rainy day in Moncton. Streets are dead, low supply everywhere.",fx:'all_crash',m:.7},
+];
+const DIFF={easy:{cashM:1.5,debtM:.7,rcmpM:.6,mugM:.5,heatM:.7,int:.03,priceM:.85},normal:{cashM:1,debtM:1,rcmpM:1,mugM:1,heatM:1,int:.05,priceM:1},hard:{cashM:.7,debtM:1.3,rcmpM:1.5,mugM:1.5,heatM:1.4,int:.08,priceM:1.15}};
+
+let G={},market={},bankQV=0,loanQV=0,travelDest=null;
+function $(id){return document.getElementById(id)}
+function fmt(n){return '$'+Math.round(n).toLocaleString()}
+function rnd(a,b){return Math.random()*(b-a)+a}
+function rndI(a,b){return Math.floor(rnd(a,b+1))}
+function ch(p){return Math.random()<p}
+function cl(v,lo,hi){return Math.max(lo,Math.min(hi,v))}
+function invT(){return Object.values(G.inv).reduce((s,v)=>s+v,0)}
+function stashT(){return Object.values(G.stash).reduce((s,v)=>s+v,0)}
+function getLoc(id){return LOCATIONS.find(l=>l.id===id)}
+function dm(){return DIFF[G.diff]}
+
+function showScreen(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));$(id).classList.add('active')}
+function showModal(h){$('modal-content').innerHTML=h;$('modal').classList.add('active')}
+function hideModal(){$('modal').classList.remove('active')}
+function showQM(h){$('qty-modal-content').innerHTML=h;$('qty-modal').classList.add('active')}
+function hideQM(){$('qty-modal').classList.remove('active')}
+
+function updateUI(){
+  $('s-cash').textContent=fmt(G.cash);$('s-health').textContent=G.health;$('s-heat').textContent=Math.round(G.heat);$('s-day').textContent=G.day+'/'+G.maxDays;
+  $('s-bank').textContent=fmt(G.bank);$('s-debt').textContent=fmt(G.debt);$('s-rep').textContent=Math.round(G.rep);$('s-inv').textContent=invT()+'/'+G.invCap;
+  const loc=getLoc(G.location);$('s-loc').textContent=loc.name;$('s-vibe').textContent=loc.vibe;
+  if(G.weapon){$('weapon-bar').style.display='block';const w=WEAPONS.find(w=>w.id===G.weapon);$('weapon-bar').textContent='🔫 '+w.name+' ('+w.desc+')';}else{$('weapon-bar').style.display='none'}
+  $('btn-market').disabled=loc.isShop;
+  document.documentElement.classList.toggle('low-hp',G.health<=25);
+}
+function addLog(msg){const log=$('event-log'),p=document.createElement('div');p.style.cssText='margin-bottom:4px;border-bottom:1px solid #1a1a1a;padding-bottom:4px';p.innerHTML='<span style="color:var(--dim-green)">[Day '+G.day+']</span> '+msg;log.prepend(p);while(log.children.length>50)log.removeChild(log.lastChild)}
+
+function selectDiff(el){document.querySelectorAll('.diff-btn').forEach(b=>b.classList.remove('selected'));el.classList.add('selected')}
+
+function startGame(){
+  const name=$('name-input').value.trim().toUpperCase()||'DEALER';
+  const diff=document.querySelector('.diff-btn.selected').dataset.diff;
+  const d=DIFF[diff];
+  G={name,diff,day:1,maxDays:30,cash:Math.round(2000*d.cashM),debt:Math.round(5500*d.debtM),bank:0,health:100,maxHP:100,heat:0,rep:0,
+    location:'lewisville',inv:{},stash:{},invCap:100,weapon:null,stashOn:false,boughtUp:[],boughtWp:[],
+    freeT:false,bus2x:false,
+    st:{deals:0,bigDeal:0,bought:0,sold:0,drugSold:{},drugRev:{},rcmp:0,rcmpW:0,rcmpR:0,mugs:0,visits:{},earned:0}};
+  market=genMarket();$('event-log').innerHTML='';
+  addLog('Welcome to Moncton, '+G.name+'. 30 days to make your fortune.');
+  addLog('You owe the loan shark '+fmt(G.debt)+'. Interest compounds daily.');
+  updateUI();showScreen('game-screen');
+}
+
+function genMarket(){
+  const loc=getLoc(G.location);if(loc.isShop)return {};
+  const mk={},d=dm();
+  DRUGS.forEach(drug=>{
+    if(ch(.15+(1-loc.supplyMod)*.3))return;
+    let pm=loc.priceMod*d.priceM;
+    if(loc.id==='cornhill'&&drug.id==='meth')pm*=.5;
+    if(loc.id==='ackmin'&&drug.id==='crack')pm*=.6;
+    let price=rnd(drug.min,drug.max)*pm;
+    if(ch(.1))price*=rnd(2,5);if(ch(.1))price*=rnd(.2,.5);
+    mk[drug.id]={price:Math.max(1,Math.round(price)),supply:Math.round(rnd(5,30)*loc.supplyMod)};
+  });
+  return mk;
+}
+
+function showMarket(){
+  const loc=getLoc(G.location);if(loc.isShop)return;
+  let h='';
+  DRUGS.forEach(drug=>{
+    const m=market[drug.id],owned=G.inv[drug.id]||0;
+    const canBuy=m&&m.supply>0&&G.cash>=m.price&&invT()<G.invCap;
+    h+='<div class="market-item"><div><div class="drug-name">'+drug.name+'</div><div style="font-size:12px;color:var(--text-dim)">Own: '+owned+'</div></div>';
+    h+='<div class="drug-price">'+(m?fmt(m.price):'<span style="color:var(--text-dim)">N/A</span>')+'</div>';
+    h+='<div class="drug-btns"><button class="drug-btn" onclick="buyDrug(\''+drug.id+'\')" '+(canBuy?'':'disabled')+'>BUY</button>';
+    h+='<button class="drug-btn sell" onclick="sellDrug(\''+drug.id+'\')" '+(owned>0?'':'disabled')+'>SELL</button></div></div>';
+  });
+  $('market-list').innerHTML=h;showScreen('market-screen');
+}
+
+function buyDrug(id){
+  const drug=DRUGS.find(d=>d.id===id),m=market[id];if(!m)return;
+  const maxB=Math.min(Math.floor(G.cash/m.price),G.invCap-invT(),m.supply);if(maxB<=0)return;
+  window._bq=1;window._bm=maxB;window._bd=id;
+  showQM('<h2>BUY '+drug.name+'</h2><p>Price: '+fmt(m.price)+' each</p><div class="qty-controls"><button class="qty-btn" onclick="abq(-10)">--</button><button class="qty-btn" onclick="abq(-1)">-</button><span class="qty-display" id="bq-d">1</span><button class="qty-btn" onclick="abq(1)">+</button><button class="qty-btn" onclick="abq(10)">++</button></div><div class="qty-info" id="bq-t">Total: '+fmt(m.price)+'</div><button class="qty-max-btn" onclick="abq(9999)">MAX ('+maxB+')</button><div class="modal-buttons"><button class="btn w-full" onclick="confBuy()">BUY</button><button class="btn red small w-full" onclick="hideQM()">CANCEL</button></div>');
+}
+function abq(d){const m=market[window._bd];if(d===9999)window._bq=window._bm;else window._bq=cl(window._bq+d,1,window._bm);$('bq-d').textContent=window._bq;$('bq-t').textContent='Total: '+fmt(window._bq*m.price)}
+function confBuy(){const m=market[window._bd],q=window._bq,c=q*m.price;G.cash-=c;G.inv[window._bd]=(G.inv[window._bd]||0)+q;m.supply-=q;G.st.bought+=q;G.st.deals++;hideQM();addLog('Bought '+q+' '+DRUGS.find(d=>d.id===window._bd).name+' for '+fmt(c));updateUI();showMarket()}
+
+function sellDrug(id){
+  const drug=DRUGS.find(d=>d.id===id),owned=G.inv[id]||0;if(owned<=0)return;
+  const price=market[id]?market[id].price:Math.round(rnd(drug.min,drug.max)*.7);
+  window._sq=1;window._sm=owned;window._sd=id;window._sp=price;
+  showQM('<h2>SELL '+drug.name+'</h2><p>Price: '+fmt(price)+' each</p><p style="font-size:14px;color:var(--text-dim)">You have: '+owned+'</p><div class="qty-controls"><button class="qty-btn" onclick="asq(-10)">--</button><button class="qty-btn" onclick="asq(-1)">-</button><span class="qty-display" id="sq-d">1</span><button class="qty-btn" onclick="asq(1)">+</button><button class="qty-btn" onclick="asq(10)">++</button></div><div class="qty-info" id="sq-t">Total: '+fmt(price)+'</div><button class="qty-max-btn" onclick="asq(9999)">SELL ALL ('+owned+')</button><div class="modal-buttons"><button class="btn w-full" onclick="confSell()">SELL</button><button class="btn red small w-full" onclick="hideQM()">CANCEL</button></div>');
+}
+function asq(d){if(d===9999)window._sq=window._sm;else window._sq=cl(window._sq+d,1,window._sm);$('sq-d').textContent=window._sq;$('sq-t').textContent='Total: '+fmt(window._sq*window._sp)}
+function confSell(){const q=window._sq,rev=q*window._sp,id=window._sd,drug=DRUGS.find(d=>d.id===id);G.cash+=rev;G.inv[id]-=q;if(G.inv[id]<=0)delete G.inv[id];
+  G.rep+=Math.round(rev/100);G.heat=Math.min(100,G.heat+q*.3*dm().heatM);
+  G.st.sold+=q;G.st.deals++;G.st.earned+=rev;G.st.drugSold[id]=(G.st.drugSold[id]||0)+q;G.st.drugRev[id]=(G.st.drugRev[id]||0)+rev;if(rev>G.st.bigDeal)G.st.bigDeal=rev;
+  hideQM();addLog('Sold '+q+' '+drug.name+' for '+fmt(rev)+' (+'+Math.round(rev/100)+' rep)');
+  if(!G.stashOn&&G.rep>=150){G.stashOn=true;addLog('<span class="text-orange">★ STASH HOUSE UNLOCKED!</span>')}
+  updateUI();showMarket();
+}
+
+function showTravel(){
+  travelDest=null;let h='<div style="padding:4px 0 8px;font-size:14px;color:var(--text-dim)">Choose destination:</div>';
+  LOCATIONS.forEach(loc=>{const cur=loc.id===G.location;h+='<div class="travel-dest '+(cur?'current':'')+'" onclick="selDest(\''+loc.id+'\')"><div><div class="name">'+loc.name+'</div><div class="vibe">'+loc.vibe+'</div></div><div style="font-size:13px;color:var(--text-dim)">'+(loc.isShop?'🛒':'💊')+'</div></div>'});
+  $('travel-phase1').innerHTML=h;$('travel-phase1').style.display='block';$('travel-phase2').style.display='none';showScreen('travel-screen');
+}
+function selDest(id){
+  travelDest=id;let h='<div style="padding:0 0 8px;font-size:14px;color:var(--text-dim)">Travel to '+getLoc(id).name+':</div>';
+  TRAVEL.forEach(m=>{let c=m.cost;if(G.freeT&&m.id!=='walk')c=0;if(G.bus2x&&m.id==='bus')c*=2;
+    h+='<button class="method-btn" onclick="doTravel(\''+m.id+'\')" '+(G.cash>=c?'':'disabled')+'><div><div>'+m.name+'</div><div class="risk">'+m.desc+'</div></div><div class="cost">'+(c===0?'FREE':fmt(c))+'</div></button>'});
+  h+='<button class="method-btn" onclick="showTravel()" style="border-color:var(--red);color:var(--red)"><div>← Pick different spot</div><div></div></button>';
+  $('travel-phase2').innerHTML=h;$('travel-phase1').style.display='none';$('travel-phase2').style.display='block';
+}
+function doTravel(mid){
+  const m=TRAVEL.find(t=>t.id===mid);let c=m.cost;if(G.freeT)c=0;if(G.bus2x&&mid==='bus')c*=2;
+  G.cash-=c;G.location=travelDest;G.st.visits[travelDest]=(G.st.visits[travelDest]||0)+1;G.freeT=false;G.bus2x=false;
+  let evt=null;const d=dm();
+  if(m.risk>0){
+    if(ch((G.heat/100)*.4*m.risk*d.rcmpM))evt='rcmp';
+    else if(ch(getLoc(travelDest).danger*.2*m.risk*d.mugM))evt='mug';
+    if(mid==='bus'&&ch(.15))addLog('Codiac Transit running late again...');
+    if(mid==='buddy'&&ch(.1)){addLog("Buddy's car broke down. Lost $15 for a tow.");G.cash=Math.max(0,G.cash-15)}
+  }
+  addLog('Traveled to '+getLoc(travelDest).name+' via '+m.name+(c>0?' ('+fmt(c)+')':''));
+  advDay();market=genMarket();showScreen('game-screen');updateUI();
+  if(evt==='rcmp')setTimeout(rcmpEnc,300);else if(evt==='mug')setTimeout(mugEvent,300);else setTimeout(checkEvent,300);
+}
+
+function advDay(){
+  G.day++;const d=dm();
+  if(G.debt>0){const i=Math.round(G.debt*d.int);G.debt+=i;if(i>0)addLog('Loan shark interest: +'+fmt(i))}
+  G.heat=Math.max(0,G.heat-rnd(1,3));
+  if(G.day>G.maxDays)setTimeout(()=>gameOver(false),500);
+}
+
+function layLow(){
+  const drop=rnd(15,30);G.heat=Math.max(0,G.heat-drop);
+  addLog('Laid low for the day. Heat -'+Math.round(drop));market=genMarket();advDay();updateUI();
+  if(G.day<=G.maxDays)checkEvent();
+}
+
+function rcmpEnc(){
+  G.st.rcmp++;const wb=G.weapon?WEAPONS.find(w=>w.id===G.weapon).bonus:0;
+  showModal('<h2>🚔 RCMP!</h2><p>"Pull over! RCMP!"</p><p style="font-size:14px;color:var(--text-dim)">The Mounties spotted you.</p><div class="modal-buttons"><button class="btn w-full" onclick="rcmpFight()">FIGHT ('+Math.round((.3+wb)*100)+'%)</button><button class="btn yellow w-full" onclick="rcmpRun()">RUN (50%)</button></div>');
+}
+function rcmpFight(){
+  hideModal();const wb=G.weapon?WEAPONS.find(w=>w.id===G.weapon).bonus:0;
+  if(ch(.3+wb)){G.st.rcmpW++;G.heat=Math.min(100,G.heat+15);G.rep+=10;addLog('<span class="text-green">Fought off the RCMP! +10 rep</span>')}
+  else{const hp=rndI(15,35),cl2=Math.round(G.cash*rnd(.1,.3)),dl=dropDrugs(rnd(.1,.3));G.health-=hp;G.cash-=cl2;G.heat=Math.min(100,G.heat+20);
+    addLog('<span class="text-red">RCMP got you! -'+hp+' HP, -'+fmt(cl2)+(dl>0?', '+dl+' confiscated':'')+'</span>');
+    if(G.health<=0){G.health=0;updateUI();setTimeout(()=>gameOver(true),500);return}}
+  updateUI();
+}
+function rcmpRun(){
+  hideModal();G.st.rcmpR++;
+  if(ch(.5)){const dl=dropDrugs(rnd(.05,.15));addLog('<span class="text-yellow">Escaped!'+(dl>0?' Dropped '+dl+' units.':'')+'</span>')}
+  else{const hp=rndI(10,20),cl2=Math.round(G.cash*rnd(.15,.35)),dl=dropDrugs(rnd(.2,.4));G.health-=hp;G.cash-=cl2;G.heat=Math.min(100,G.heat+10);
+    addLog('<span class="text-red">Caught! -'+hp+' HP, -'+fmt(cl2)+(dl>0?', '+dl+' confiscated':'')+'</span>');
+    if(G.health<=0){G.health=0;updateUI();setTimeout(()=>gameOver(true),500);return}}
+  updateUI();
+}
+function dropDrugs(fr){let t=0;Object.keys(G.inv).forEach(id=>{const d=Math.ceil(G.inv[id]*fr);if(d>0){G.inv[id]-=d;if(G.inv[id]<=0)delete G.inv[id];t+=d}});return t}
+
+function mugEvent(){
+  G.st.mugs++;const cl2=Math.round(G.cash*rnd(.05,.2)),dl=dropDrugs(rnd(.05,.15)),hp=rndI(5,15);
+  G.cash-=cl2;G.health-=hp;
+  addLog('<span class="text-red">Jumped! -'+fmt(cl2)+', -'+hp+' HP'+(dl>0?', -'+dl+' units':'')+'</span>');
+  showModal('<h2>💀 MUGGED!</h2><p>Someone jumped you in '+getLoc(G.location).name+'.</p><p class="text-red">-'+fmt(cl2)+', -'+hp+' HP'+(dl>0?', -'+dl+' units':'')+'</p><div class="modal-buttons"><button class="btn w-full" onclick="hideModal()">DAMN</button></div>');
+  if(G.health<=0){G.health=0;updateUI();setTimeout(()=>{hideModal();gameOver(true)},1000);return}
+  updateUI();
+}
+
+function checkEvent(){
+  if(!ch(.35))return;
+  const ev=EVENTS[rndI(0,EVENTS.length-1)];
+  switch(ev.fx){
+    case'spike':if(market[ev.drug])market[ev.drug].price=Math.round(market[ev.drug].price*ev.m);break;
+    case'crash':if(market[ev.drug])market[ev.drug].price=Math.max(1,Math.round(market[ev.drug].price*ev.m));break;
+    case'all_spike':Object.keys(market).forEach(k=>{market[k].price=Math.round(market[k].price*ev.m)});break;
+    case'all_crash':Object.keys(market).forEach(k=>{market[k].price=Math.max(1,Math.round(market[k].price*ev.m))});break;
+    case'heat':G.heat=Math.min(100,G.heat+ev.v);break;
+    case'bus2x':G.bus2x=true;break;
+    case'free':G.freeT=true;break;
+    case'cash':G.cash+=ev.v;break;
+    case'doc':
+      if(G.health<G.maxHP&&G.cash>=200){
+        showModal('<h2>🩹 STREET DOC</h2><p>'+ev.msg+'</p><div class="modal-buttons"><button class="btn w-full" onclick="docHeal()">PAY $200 (+40 HP)</button><button class="btn red small w-full" onclick="hideModal()">NAH</button></div>');
+        addLog(ev.msg);updateUI();return}
+      return;
+  }
+  if(ev.fx!=='doc'){addLog('<span class="text-yellow">📰 '+ev.msg+'</span>');
+    showModal('<h2>📰 NEWS</h2><p>'+ev.msg+'</p><div class="modal-buttons"><button class="btn w-full" onclick="hideModal()">OK</button></div>')}
+  updateUI();
+}
+function docHeal(){G.cash-=200;G.health=Math.min(G.maxHP,G.health+40);hideModal();addLog('<span class="text-cyan">Street doc patched you up. +40 HP</span>');updateUI()}
+
+function showBank(){bankQV=0;$('bank-balance').textContent='Balance: '+fmt(G.bank);$('bank-cash').textContent='Cash: '+fmt(G.cash);$('bank-qty').textContent='$0';$('bank-qty').style.color='var(--green)';showScreen('bank-screen')}
+function bankQty(d){bankQV+=d;if(bankQV>0)bankQV=Math.min(bankQV,G.cash);else bankQV=Math.max(bankQV,-G.bank);$('bank-qty').textContent=(bankQV>=0?'+':'')+fmt(bankQV);$('bank-qty').style.color=bankQV>=0?'var(--green)':'var(--red)'}
+function bankMax(){bankQV=G.cash;$('bank-qty').textContent='+'+fmt(bankQV);$('bank-qty').style.color='var(--green)'}
+function bankAction(){if(bankQV===0)return;G.cash-=bankQV;G.bank+=bankQV;addLog(bankQV>0?'Deposited '+fmt(bankQV)+' in bank.':'Withdrew '+fmt(-bankQV)+' from bank.');bankQV=0;updateUI();showBank()}
+
+function showLoan(){loanQV=0;$('loan-debt').textContent='Debt: '+fmt(G.debt);$('loan-cash').textContent='Cash: '+fmt(G.cash);$('loan-qty').textContent='$0';showScreen('loan-screen')}
+function loanQty(d){loanQV=cl(loanQV+d,0,Math.min(G.cash,G.debt));$('loan-qty').textContent=fmt(loanQV)}
+function loanMax(){loanQV=Math.min(G.cash,G.debt);$('loan-qty').textContent=fmt(loanQV)}
+function loanAction(){if(loanQV<=0)return;G.cash-=loanQV;G.debt-=loanQV;addLog('Paid '+fmt(loanQV)+' to loan shark. Remaining: '+fmt(G.debt));if(G.debt<=0){G.debt=0;addLog('<span class="text-green">★ DEBT PAID OFF!</span>')}loanQV=0;updateUI();showLoan()}
+
+function showHeal(){
+  const need=G.maxHP-G.health;let h='<div class="info">Health: '+G.health+'/'+G.maxHP+'</div>';
+  if(need<=0)h+='<div class="info" style="margin-top:8px">Full health!</div>';
+  else{h+='<div class="shop-item"><div><div class="item-name">Corner Store</div><div class="item-desc">Energy drink + snack (+15 HP)</div></div><button class="shop-buy-btn" onclick="heal(25,15,\'corner store\')" '+(G.cash>=25?'':'disabled')+'>$25</button></div>';
+    h+='<div class="shop-item"><div><div class="item-name">Moncton Hospital</div><div class="item-desc">Full heal (RCMP risk if heat high)</div></div><button class="shop-buy-btn" onclick="hospHeal()" '+(G.cash>=500?'':'disabled')+'>$500</button></div>'}
+  $('heal-options').innerHTML=h;showScreen('heal-screen');
+}
+function heal(c,a,s){G.cash-=c;G.health=Math.min(G.maxHP,G.health+a);addLog('Healed +'+a+' HP at '+s+' ('+fmt(c)+')');updateUI();showHeal()}
+function hospHeal(){G.cash-=500;G.health=G.maxHP;addLog('Fully healed at hospital (-$500)');if(G.heat>30&&ch(.3)){G.heat=Math.min(100,G.heat+15);addLog('<span class="text-red">Hospital tipped off RCMP!</span>')}updateUI();showHeal()}
+
+function showShop(){
+  let h='<div style="padding:4px 0 8px;font-size:14px;color:var(--text-dim)">Weapons:</div>';
+  WEAPONS.forEach(w=>{const owned=G.boughtWp.includes(w.id),eq=G.weapon===w.id;
+    h+='<div class="shop-item"><div><div class="item-name">'+w.name+'</div><div class="item-desc">'+w.desc+'</div></div>';
+    if(eq)h+='<span style="color:var(--green);font-size:14px">EQUIPPED</span>';
+    else if(owned)h+='<button class="shop-buy-btn" onclick="eqWp(\''+w.id+'\')">EQUIP</button>';
+    else h+='<button class="shop-buy-btn" onclick="buyWp(\''+w.id+'\')" '+(G.cash>=w.cost?'':'disabled')+'>'+fmt(w.cost)+'</button>';
+    h+='</div>'});
+  h+='<div style="padding:12px 0 8px;font-size:14px;color:var(--text-dim)">Inventory Upgrades:</div>';
+  INV_UP.forEach(u=>{const owned=G.boughtUp.includes(u.id);
+    h+='<div class="shop-item"><div><div class="item-name">'+u.name+'</div><div class="item-desc">'+u.desc+'</div></div>';
+    if(owned)h+='<span style="color:var(--green);font-size:14px">OWNED</span>';
+    else h+='<button class="shop-buy-btn" onclick="buyUp(\''+u.id+'\')" '+(G.cash>=u.cost?'':'disabled')+'>'+fmt(u.cost)+'</button>';
+    h+='</div>'});
+  $('shop-list').innerHTML=h;showScreen('shop-screen');
+}
+function buyWp(id){const w=WEAPONS.find(w=>w.id===id);G.cash-=w.cost;G.boughtWp.push(id);G.weapon=id;addLog('Bought '+w.name+' ('+fmt(w.cost)+')');updateUI();showShop()}
+function eqWp(id){G.weapon=id;addLog('Equipped '+WEAPONS.find(w=>w.id===id).name);updateUI();showShop()}
+function buyUp(id){const u=INV_UP.find(u=>u.id===id);G.cash-=u.cost;G.boughtUp.push(id);G.invCap+=u.cap;addLog('Bought '+u.name+' — capacity: '+G.invCap+' ('+fmt(u.cost)+')');updateUI();showShop()}
+
+function showStash(){
+  if(!G.stashOn){$('stash-content').innerHTML='<div style="text-align:center;padding:40px 20px"><p class="text-orange" style="font-family:\'Press Start 2P\',monospace;font-size:10px;margin-bottom:12px">LOCKED</p><p style="color:var(--text-dim)">Build rep to unlock.</p><p style="margin-top:8px;color:var(--text-dim)">Rep: <span class="text-orange">'+Math.round(G.rep)+'</span> / 150</p></div>';showScreen('stash-screen');return}
+  let h='<div style="padding:4px 0 8px;font-size:14px;color:var(--text-dim)">Stash: '+stashT()+' stored | Pack: '+invT()+'/'+G.invCap+'</div>';
+  const all=new Set([...Object.keys(G.inv),...Object.keys(G.stash)]);
+  if(all.size===0)h+='<div style="text-align:center;padding:20px;color:var(--text-dim)">No product to manage.</div>';
+  all.forEach(id=>{const drug=DRUGS.find(d=>d.id===id),ip=G.inv[id]||0,is=G.stash[id]||0;
+    h+='<div class="shop-item"><div style="width:100%;margin-bottom:4px"><span class="item-name">'+drug.name+'</span></div><div style="font-size:14px;width:100%;display:flex;justify-content:space-between"><span>Pack: '+ip+'</span><span>Stash: '+is+'</span></div><div style="width:100%;display:flex;gap:4px;margin-top:6px"><button class="shop-buy-btn" onclick="stDep(\''+id+'\')" '+(ip>0?'':'disabled')+' style="flex:1">STORE →</button><button class="shop-buy-btn" onclick="stWd(\''+id+'\')" '+(is>0&&invT()<G.invCap?'':'disabled')+' style="flex:1;border-color:var(--cyan);color:var(--cyan)">← TAKE</button></div></div>'});
+  $('stash-content').innerHTML=h;showScreen('stash-screen');
+}
+function stDep(id){const n=G.inv[id]||0;if(n<=0)return;G.stash[id]=(G.stash[id]||0)+n;delete G.inv[id];addLog('Stored '+n+' '+DRUGS.find(d=>d.id===id).name);updateUI();showStash()}
+function stWd(id){const n=G.stash[id]||0,sp=G.invCap-invT(),t=Math.min(n,sp);if(t<=0)return;G.inv[id]=(G.inv[id]||0)+t;G.stash[id]-=t;if(G.stash[id]<=0)delete G.stash[id];addLog('Took '+t+' '+DRUGS.find(d=>d.id===id).name+' from stash');updateUI();showStash()}
+
+function gameOver(died){
+  const nw=G.cash+G.bank-G.debt,surv=Math.min(G.day,G.maxDays);
+  let topL='None',topV=0;Object.entries(G.st.visits).forEach(([id,c])=>{if(c>topV){topV=c;topL=getLoc(id).name}});
+  saveHS(G.name,nw,G.diff,surv);
+  let h=died?'<h1>💀 GAME OVER</h1><p style="font-size:18px;color:var(--red);text-align:center;margin-bottom:16px">'+G.name+' didn\'t make it.</p>':'<h1 class="win">🏆 TIME\'S UP</h1><p style="font-size:18px;color:var(--green);text-align:center;margin-bottom:16px">'+G.name+' survived '+surv+' days.</p>';
+  h+='<div class="go-stats">';
+  h+=gs('Net Worth',fmt(nw),nw<0)+gs('Cash',fmt(G.cash))+gs('Bank',fmt(G.bank))+gs('Debt',fmt(G.debt),G.debt>0)+gs('Days',surv+'/'+G.maxDays)+gs('Rep',Math.round(G.rep));
+  h+=gs('Deals',G.st.deals)+gs('Biggest Deal',fmt(G.st.bigDeal))+gs('Total Earned',fmt(G.st.earned))+gs('Bought',G.st.bought+' units')+gs('Sold',G.st.sold+' units');
+  h+=gs('RCMP Encounters',G.st.rcmp)+gs('Fights Won',G.st.rcmpW)+gs('Times Mugged',G.st.mugs)+gs('Most Visited',topL+' ('+topV+')');
+  if(Object.keys(G.st.drugSold).length>0){h+='<div style="padding:12px 0 4px;font-family:\'Press Start 2P\',monospace;font-size:8px;color:var(--yellow)">DRUGS SOLD</div>';
+    Object.entries(G.st.drugSold).forEach(([id,q])=>{h+=gs(DRUGS.find(d=>d.id===id).name,q+' / '+fmt(G.st.drugRev[id]||0))})}
+  h+='</div><div style="display:flex;flex-direction:column;gap:8px;align-items:center;padding:16px"><button class="btn w-full" onclick="showScreen(\'setup-screen\')">PLAY AGAIN</button><button class="btn yellow w-full" onclick="showScores()">HIGH SCORES</button><button class="btn red small w-full" onclick="showScreen(\'title-screen\')">MAIN MENU</button></div>';
+  $('gameover-screen').innerHTML=h;showScreen('gameover-screen');
+}
+function gs(l,v,neg){return '<div class="go-stat"><span class="label">'+l+'</span><span class="value '+(neg?'negative':'')+'">'+v+'</span></div>'}
+
+function saveHS(name,nw,diff,days){let s=JSON.parse(localStorage.getItem('dw_scores')||'[]');s.push({name,nw,diff,days,date:new Date().toLocaleDateString()});s.sort((a,b)=>b.nw-a.nw);s=s.slice(0,20);localStorage.setItem('dw_scores',JSON.stringify(s))}
+function showScores(){const s=JSON.parse(localStorage.getItem('dw_scores')||'[]');let h='';if(s.length===0)h='<div style="padding:40px;color:var(--text-dim);text-align:center">No scores yet!</div>';
+  else s.forEach((e,i)=>{h+='<div class="score-entry"><span class="score-rank">#'+(i+1)+'</span><span class="score-name">'+e.name+' <span style="font-size:12px;color:var(--text-dim)">('+e.diff+')</span></span><span class="score-cash">'+fmt(e.nw)+'</span></div>'});
+  $('scores-list').innerHTML=h;showScreen('scores-screen');
+}
+if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
+</script>
+</body>
+</html>
