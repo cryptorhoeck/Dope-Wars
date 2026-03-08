@@ -88,6 +88,19 @@ html.low-hp .stat-val.health{animation:hpFlash 0.5s infinite}
 .station-picker.active{display:block}
 .station-opt{padding:8px 12px;font-family:'VT323',monospace;font-size:16px;color:var(--text);cursor:pointer}
 .station-opt:active,.station-opt.sel{color:var(--green);background:rgba(51,255,51,0.1)}
+.tier-btns{display:flex;flex-direction:column;gap:6px;width:100%;max-width:280px}
+.tier-btn{background:none;border:2px solid var(--border);color:var(--text-dim);font-family:'Press Start 2P',monospace;font-size:7px;padding:10px 8px;cursor:pointer;text-align:center;transition:all 0.1s;line-height:1.6}
+.tier-btn.selected{border-color:var(--green);color:var(--green);background:rgba(51,255,51,0.1)}
+.tier-btn.locked{opacity:0.35;pointer-events:none;border-color:var(--border)}
+.tier-btn:active{transform:scale(0.97)}
+.gang-card{padding:10px;margin-bottom:6px;background:var(--panel);border:1px solid var(--border)}
+.gang-card .gang-name{font-family:'Press Start 2P',monospace;font-size:9px;color:var(--orange);margin-bottom:4px}
+.gang-card .gang-desc{font-size:14px;color:var(--text-dim);margin-bottom:4px}
+.gang-card .gang-info{font-size:13px;color:var(--text-dim)}
+.gang-card .gang-status{font-family:'Press Start 2P',monospace;font-size:8px;margin-top:6px}
+.gang-card .gang-btn{background:none;border:1px solid var(--orange);color:var(--orange);font-family:'VT323',monospace;font-size:16px;padding:4px 12px;cursor:pointer;margin-top:6px}
+.gang-card .gang-btn:active{background:var(--orange);color:var(--bg)}
+.gang-card .gang-btn:disabled{opacity:0.3;pointer-events:none}
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
 </head>
@@ -113,6 +126,9 @@ html.low-hp .stat-val.health{animation:hpFlash 0.5s infinite}
     <button class="diff-btn selected" data-diff="normal" onclick="selectDiff(this)">NORMAL</button>
     <button class="diff-btn" data-diff="hard" onclick="selectDiff(this)">HARD</button>
   </div>
+  <div style="height:12px"></div>
+  <div class="setup-label" id="tier-label" style="display:none">TIER</div>
+  <div class="tier-btns" id="tier-btns" style="display:none"></div>
   <div style="height:20px"></div>
   <button class="btn" onclick="startGame()">START HUSTLING</button>
   <button class="btn red small" style="margin-top:8px;max-width:280px" onclick="showScreen('title-screen')">BACK</button>
@@ -145,6 +161,7 @@ html.low-hp .stat-val.health{animation:hpFlash 0.5s infinite}
     <button class="action-btn" onclick="showStash()"><span class="icon">📦</span>Stash</button>
     <button class="action-btn" onclick="layLow()"><span class="icon">😎</span>Lay Low</button>
     <button class="action-btn" onclick="saveGame(true)"><span class="icon">💾</span>Save</button>
+    <button class="action-btn" id="btn-gangs" onclick="showGangs()" style="display:none"><span class="icon">🏍️</span>Gangs</button>
   </div>
   <div id="event-log" style="flex:1;overflow-y:auto;padding:8px;font-size:15px;color:var(--text-dim)"></div>
 </div>
@@ -191,6 +208,10 @@ html.low-hp .stat-val.health{animation:hpFlash 0.5s infinite}
   <div class="screen-header"><button class="back-btn" onclick="showScreen('game-screen')">←</button><span class="screen-title">STASH HOUSE</span></div>
   <div style="flex:1;overflow-y:auto;padding:8px" id="stash-content"></div>
 </div>
+<div id="gang-screen" class="screen">
+  <div class="screen-header"><button class="back-btn" onclick="showScreen('game-screen')">←</button><span class="screen-title">GANGS</span></div>
+  <div style="flex:1;overflow-y:auto;padding:8px" id="gang-list"></div>
+</div>
 <div id="gameover-screen" class="screen"></div>
 <div id="scores-screen" class="screen">
   <div class="screen-header"><button class="back-btn" onclick="showScreen('title-screen')">←</button><span class="screen-title">HIGH SCORES</span></div>
@@ -199,11 +220,12 @@ html.low-hp .stat-val.health{animation:hpFlash 0.5s infinite}
 <div class="modal-overlay" id="modal"><div class="modal" id="modal-content"></div></div>
 <div class="modal-overlay" id="qty-modal"><div class="modal" id="qty-modal-content"></div></div>
 <script>
-const DRUGS=[{id:'weed',name:'Weed',unit:'g',min:8,max:12},{id:'xanax',name:'Xanax',unit:'pill',min:5,max:10},{id:'percs',name:'Percs',unit:'pill',min:10,max:20},{id:'molly',name:'Molly',unit:'cap',min:10,max:25},{id:'oxy',name:'Oxy',unit:'pill',min:20,max:50},{id:'dillies',name:'Dillies',unit:'pill',min:15,max:30},{id:'crack',name:'Crack',unit:'rock',min:20,max:40},{id:'meth',name:'Meth',unit:'g',min:60,max:150},{id:'cocaine',name:'Cocaine',unit:'g',min:80,max:120},{id:'heroin',name:'Heroin',unit:'g',min:80,max:200}];
-const LOCATIONS=[{id:'lewisville',name:'Lewisville',vibe:'Quiet suburban',danger:.1,rcmp:.15,priceMod:1.1,supplyMod:.7},{id:'stgeorge',name:'St George',vibe:'Rough',danger:.7,rcmp:.45,priceMod:.95,supplyMod:1.2},{id:'dogpatch',name:'The Dogpatch',vibe:'Sketchy',danger:.6,rcmp:.35,priceMod:.9,supplyMod:1.15},{id:'joyce',name:'Joyce Avenue',vibe:'NB Housing',danger:.4,rcmp:.35,priceMod:1,supplyMod:1},{id:'pinetree',name:'Pinetree TP',vibe:'Nice trailer park',danger:.2,rcmp:.15,priceMod:1.05,supplyMod:.85},{id:'ackmin',name:'Ackmin Court',vibe:'Crackhead central',danger:.9,rcmp:.1,priceMod:.75,supplyMod:1.4},{id:'lakeside',name:'Lakeside Estates',vibe:'Sketch trailer park',danger:.7,rcmp:.25,priceMod:.9,supplyMod:1.2},{id:'marshes',name:'Marshes TP',vibe:'Dirtbag TP',danger:.85,rcmp:.1,priceMod:.8,supplyMod:1.15},{id:'cornhill',name:'Cornhill',vibe:'Meth heads',danger:.85,rcmp:.1,priceMod:.85,supplyMod:1.1},{id:'mall',name:'Champlain Mall',vibe:'Shopping hub',danger:0,rcmp:.35,priceMod:1,supplyMod:0,isShop:true}];
+const DRUGS=[{id:'weed',name:'Weed',unit:'g',min:8,max:12},{id:'xanax',name:'Xanax',unit:'pill',min:5,max:10},{id:'percs',name:'Percs',unit:'pill',min:10,max:20},{id:'molly',name:'Molly',unit:'cap',min:10,max:25},{id:'oxy',name:'Oxy',unit:'pill',min:20,max:50},{id:'dillies',name:'Dillies',unit:'pill',min:15,max:30},{id:'crack',name:'Crack',unit:'rock',min:20,max:40},{id:'meth',name:'Meth',unit:'g',min:60,max:150},{id:'cocaine',name:'Cocaine',unit:'g',min:80,max:120},{id:'heroin',name:'Heroin',unit:'g',min:80,max:200},{id:'fentanyl',name:'Fentanyl',unit:'dose',min:20,max:60,tier:2},{id:'ketamine',name:'Ketamine',unit:'g',min:80,max:150,tier:3}];
+const LOCATIONS=[{id:'lewisville',name:'Lewisville',vibe:'Quiet suburban',danger:.1,rcmp:.15,priceMod:1.1,supplyMod:.7},{id:'stgeorge',name:'St George',vibe:'Rough',danger:.7,rcmp:.45,priceMod:.95,supplyMod:1.2},{id:'dogpatch',name:'The Dogpatch',vibe:'Sketchy',danger:.6,rcmp:.35,priceMod:.9,supplyMod:1.15},{id:'joyce',name:'Joyce Avenue',vibe:'NB Housing',danger:.4,rcmp:.35,priceMod:1,supplyMod:1},{id:'pinetree',name:'Pinetree TP',vibe:'Nice trailer park',danger:.2,rcmp:.15,priceMod:1.05,supplyMod:.85},{id:'ackmin',name:'Ackmin Court',vibe:'Crackhead central',danger:.9,rcmp:.1,priceMod:.75,supplyMod:1.4},{id:'lakeside',name:'Lakeside Estates',vibe:'Sketch trailer park',danger:.7,rcmp:.25,priceMod:.9,supplyMod:1.2},{id:'marshes',name:'Marshes TP',vibe:'Dirtbag TP',danger:.85,rcmp:.1,priceMod:.8,supplyMod:1.15},{id:'cornhill',name:'Cornhill',vibe:'Meth heads',danger:.85,rcmp:.1,priceMod:.85,supplyMod:1.1},{id:'mall',name:'Champlain Mall',vibe:'Shopping hub',danger:0,rcmp:.35,priceMod:1,supplyMod:0,isShop:true},{id:'foxcreek',name:'Fox Creek',vibe:'Rich golf course area',danger:.1,rcmp:.6,priceMod:1.4,supplyMod:.5,tier:2},{id:'kingswood',name:'Kingswood Park',vibe:'Old snooty money',danger:.05,rcmp:.7,priceMod:1.5,supplyMod:.3,tier:3}];
 const TRAVEL=[{id:'walk',name:'Walking',cost:0,risk:1.5,desc:'Free but risky'},{id:'bus',name:'Codiac Transit',cost:4,risk:.7,desc:'$3.50 - might be late'},{id:'buddy',name:"Buddy's Beater",cost:20,risk:.5,desc:'$15-25 - might break down'},{id:'cab',name:'Cab / Uber',cost:40,risk:0,desc:'$30-50 - safe & fast'}];
-const WEAPONS=[{id:'knife',name:'Knife',bonus:.15,cost:75,desc:'+15% fight'},{id:'bat',name:'Baseball Bat',bonus:.2,cost:150,desc:'+20% fight'},{id:'pistol',name:'Pistol',bonus:.35,cost:500,desc:'+35% fight'},{id:'shotgun',name:'Shotgun',bonus:.5,cost:1000,desc:'+50% fight'}];
-const INV_UP=[{id:'backpack',name:'Backpack',cap:50,cost:200,desc:'+50 slots'},{id:'duffel',name:'Duffel Bag',cap:100,cost:500,desc:'+100 slots'},{id:'trunk',name:'Car Trunk',cap:200,cost:1200,desc:'+200 slots'}];
+const WEAPONS=[{id:'knife',name:'Knife',bonus:.15,cost:75,desc:'+15% fight'},{id:'bat',name:'Baseball Bat',bonus:.2,cost:150,desc:'+20% fight'},{id:'pistol',name:'Pistol',bonus:.35,cost:500,desc:'+35% fight'},{id:'shotgun',name:'Shotgun',bonus:.5,cost:1000,desc:'+50% fight'},{id:'uzi',name:'Uzi',bonus:.65,cost:2500,desc:'+65% fight',tier:2},{id:'ak47',name:'AK-47',bonus:.8,cost:5000,desc:'+80% fight',tier:3}];
+const INV_UP=[{id:'backpack',name:'Backpack',cap:50,cost:200,desc:'+50 slots'},{id:'duffel',name:'Duffel Bag',cap:100,cost:500,desc:'+100 slots'},{id:'trunk',name:'Car Trunk',cap:200,cost:1200,desc:'+200 slots'},{id:'van',name:'Cargo Van',cap:400,cost:3000,desc:'+400 slots',tier:2}];
+const GANGS=[{id:'blackpistons',name:'Black Pistons',side:'outlaws',diff:1,territory:'lakeside',desc:'Outlaws affiliate. Entry-level.'},{id:'bacchus',name:'Bacchus MC',side:'neutral',diff:2,territory:'cornhill',desc:'Old school NB. Neutral wildcard.'},{id:'reddevils',name:'Red Devils MC',side:'ha',diff:3,territory:'stgeorge',desc:'Hells Angels puppet club.'},{id:'outlaws',name:'Outlaws MC',side:'outlaws',diff:4,territory:'dogpatch',desc:'HA rivals. Dangerous.'},{id:'ha',name:'Hells Angels',side:'ha',diff:5,territory:'ackmin',desc:'Top of the food chain.'}];
 const EVENTS=[
 {msg:"Concert at the Avenir Centre tonight — Molly demand skyrockets!",fx:'spike',drug:'molly',m:4},
 {msg:"Huge RCMP bust on Main Street — cocaine prices tripled!",fx:'spike',drug:'cocaine',m:3},
@@ -223,10 +245,23 @@ const EVENTS=[
 {msg:"A regular tipped you off — Heroin about to dry up.",fx:'spike',drug:'heroin',m:3},
 {msg:"Someone's been talking. Word got around about you.",fx:'heat',v:12},
 {msg:"Rainy day in Moncton. Streets are dead, low supply everywhere.",fx:'all_crash',m:.7},
+{msg:"Fentanyl batch from BC just hit the streets — prices tanking.",fx:'crash',drug:'fentanyl',m:.3,tier:2},
+{msg:"Fox Creek country club party — premium prices on everything.",fx:'all_spike',m:1.6,tier:2},
+{msg:"Rich kid from Fox Creek OD'd — RCMP cracking down hard on that side of town.",fx:'heat',v:25,tier:2},
+{msg:"Someone's cutting fentanyl with baking soda in the Dogpatch. Demand shifting.",fx:'crash',drug:'fentanyl',m:.5,tier:2},
+{msg:"Golf tournament at Fox Creek — security everywhere, heat spiking.",fx:'heat',v:18,tier:2},
+{msg:"New connect offering bulk Fentanyl at a discount.",fx:'spike',drug:'fentanyl',m:2.5,tier:2},
+{msg:"Hells Angels riding through town — heat spiking everywhere.",fx:'heat',v:30,tier:3},
+{msg:"Rival MC started a turf war in the Dogpatch. Danger level maxed.",fx:'heat',v:20,tier:3},
+{msg:"Kingswood Park doctor writing scripts — Ketamine demand through the roof.",fx:'spike',drug:'ketamine',m:3,tier:3},
+{msg:"Rich couple from Kingswood wants a party package. Premium prices.",fx:'all_spike',m:1.8,tier:3},
+{msg:"Underground rave near the university — Ketamine and Molly selling fast.",fx:'spike',drug:'molly',m:3,tier:3},
+{msg:"Your gang backed you up in a fight — free heal +20 HP.",fx:'gangheal',tier:3},
+{msg:"RCMP task force set up specifically to catch you. Heat spiking hard.",fx:'heat',v:25,tier:3},
 ];
 const DIFF={easy:{cashM:1.5,debtM:.7,rcmpM:.6,mugM:.5,heatM:.7,int:.03,priceM:.85},normal:{cashM:1,debtM:1,rcmpM:1,mugM:1,heatM:1,int:.05,priceM:1},hard:{cashM:.7,debtM:1.3,rcmpM:1.5,mugM:1.5,heatM:1.4,int:.08,priceM:1.15}};
 
-let G={},market={},bankQV=0,loanQV=0,travelDest=null;
+let G={},market={},bankQV=0,loanQV=0,travelDest=null,selTier=1;
 function $(id){return document.getElementById(id)}
 function fmt(n){return '$'+Math.round(n).toLocaleString()}
 function rnd(a,b){return Math.random()*(b-a)+a}
@@ -251,31 +286,49 @@ function updateUI(){
   if(G.weapon){$('weapon-bar').style.display='block';const w=WEAPONS.find(w=>w.id===G.weapon);$('weapon-bar').textContent='🔫 '+w.name+' ('+w.desc+')';}else{$('weapon-bar').style.display='none'}
   document.documentElement.classList.toggle('low-hp',G.health<=25);
   if(G.health<=25&&G.health>0)startHeartbeat();else stopHeartbeat();
+  const gb=$('btn-gangs');if(gb)gb.style.display=G.tier>=3?'':'none';
 }
 function addLog(msg){const log=$('event-log'),p=document.createElement('div');p.style.cssText='margin-bottom:4px;border-bottom:1px solid #1a1a1a;padding-bottom:4px';p.innerHTML='<span style="color:var(--dim-green)">[Day '+G.day+']</span> '+msg;log.prepend(p);while(log.children.length>50)log.removeChild(log.lastChild)}
 
-function selectDiff(el){document.querySelectorAll('.diff-btn').forEach(b=>b.classList.remove('selected'));el.classList.add('selected')}
+function selectDiff(el){document.querySelectorAll('.diff-btn').forEach(b=>b.classList.remove('selected'));el.classList.add('selected');renderTierSelector()}
+function getUnlockedTier(){return parseInt(localStorage.getItem('dw_tier')||'1')}
+function setUnlockedTier(t){localStorage.setItem('dw_tier',String(t))}
+function renderTierSelector(){
+  const ut=getUnlockedTier();if(ut<=1){$('tier-label').style.display='none';$('tier-btns').style.display='none';selTier=1;return}
+  $('tier-label').style.display='';$('tier-btns').style.display='';
+  const tiers=[{t:1,name:'STREET RUNNER',days:30},{t:2,name:'SHOT CALLER',days:45},{t:3,name:'KINGPIN',days:60}];
+  let h='';tiers.forEach(ti=>{
+    const locked=ti.t>ut,sel=ti.t===selTier;
+    h+='<button class="tier-btn'+(sel?' selected':'')+(locked?' locked':'')+'" onclick="pickTier('+ti.t+')">'+(locked?'🔒 ':'')+(ti.t===1?'':ti.t===2?'🔓 ':'👑 ')+ti.name+' ('+ti.days+' DAYS)'+(locked?'<br><span style="font-size:6px;color:var(--text-dim)">NEED '+(ti.t===2?300:600)+' REP</span>':'')+'</button>'});
+  $('tier-btns').innerHTML=h;
+}
+function pickTier(t){if(t>getUnlockedTier())return;selTier=t;renderTierSelector()}
 
 function startGame(){
   const name=$('name-input').value.trim().toUpperCase()||'DEALER';
   const diff=document.querySelector('.diff-btn.selected').dataset.diff;
-  const d=DIFF[diff];
-  G={name,diff,day:1,maxDays:30,cash:Math.round(2000*d.cashM),debt:Math.round(5500*d.debtM),bank:0,health:100,maxHP:100,heat:0,rep:0,
+  const d=DIFF[diff];const tier=selTier;
+  const mdays=tier===3?60:tier===2?45:30;
+  G={name,diff,day:1,maxDays:mdays,cash:Math.round(2000*d.cashM),debt:Math.round(5500*d.debtM),bank:0,health:100,maxHP:100,heat:0,rep:0,
     location:'lewisville',inv:{},stash:{},costBasis:{},invCap:100,weapon:null,stashOn:false,boughtUp:[],boughtWp:[],
-    freeT:false,bus2x:false,
-    st:{deals:0,bigDeal:0,bought:0,sold:0,drugSold:{},drugRev:{},rcmp:0,rcmpW:0,rcmpR:0,mugs:0,visits:{},earned:0}};
+    freeT:false,bus2x:false,tier:tier,unlockedTier:getUnlockedTier(),maxTier:3,
+    gang:null,gangRep:0,enemies:[],gangMission:null,gangMissionDays:0,
+    st:{deals:0,bigDeal:0,bought:0,sold:0,drugSold:{},drugRev:{},rcmp:0,rcmpW:0,rcmpR:0,mugs:0,visits:{},earned:0,rivals:0,hookups:0}};
   market=genMarket();$('event-log').innerHTML='';
-  addLog('Welcome to Moncton, '+G.name+'. 30 days to make your fortune.');
+  const tn=tier===3?'KINGPIN':tier===2?'SHOT CALLER':'STREET RUNNER';
+  addLog('Welcome to Moncton, '+G.name+'. '+mdays+' days to make your fortune. ['+tn+']');
   addLog('You owe the loan shark '+fmt(G.debt)+'. Interest compounds daily.');
   updateUI();showScreen('game-screen');playGameStart();setTimeout(playBeat,600);
 }
 
+function tierDrugs(){return DRUGS.filter(d=>!d.tier||d.tier<=G.tier)}
+function tierLocs(){return LOCATIONS.filter(l=>!l.tier||l.tier<=G.tier)}
 function genMarket(){
   const loc=getLoc(G.location);if(loc.isShop)return {};
-  const mk={},d=dm();
-  DRUGS.forEach(drug=>{
+  const mk={},d=dm();let pm0=gangPriceMod();
+  tierDrugs().forEach(drug=>{
     if(ch(.15+(1-loc.supplyMod)*.3))return;
-    let pm=loc.priceMod*d.priceM;
+    let pm=loc.priceMod*d.priceM*pm0;
     if(loc.id==='cornhill'&&drug.id==='meth')pm*=.5;
     if(loc.id==='ackmin'&&drug.id==='crack')pm*=.6;
     let price=rnd(drug.min,drug.max)*pm;
@@ -284,13 +337,24 @@ function genMarket(){
   });
   return mk;
 }
+function gangPriceMod(){
+  if(!G.gang||G.tier<3)return 1;
+  const g=GANGS.find(g=>g.id===G.gang);if(!g)return 1;
+  const loc=getLoc(G.location);
+  // allied territory
+  const allies=GANGS.filter(x=>x.side===g.side).map(x=>x.territory);
+  if(allies.includes(loc.id))return .8;
+  // enemy territory
+  if(G.enemies.length>0){const eterr=GANGS.filter(x=>G.enemies.includes(x.id)).map(x=>x.territory);if(eterr.includes(loc.id))return 1.2}
+  return 1;
+}
 
 function showMarket(){
   const loc=getLoc(G.location);if(loc.isShop){showShop();return}
   document.querySelector('#market-screen .screen-title').textContent='BUY / SELL';
   const showCmp=G.diff!=='hard';
   let h='';
-  DRUGS.forEach(drug=>{
+  tierDrugs().forEach(drug=>{
     const m=market[drug.id],owned=G.inv[drug.id]||0;
     const canBuy=m&&m.supply>0&&G.cash>=m.price&&invT()<G.invCap;
     h+='<div class="market-item"><div><div class="drug-name">'+drug.name+'</div><div style="font-size:12px;color:var(--text-dim)">Own: '+owned+'</div></div>';
@@ -327,15 +391,28 @@ function confSell(){const q=window._sq,rev=q*window._sp,id=window._sd,drug=DRUGS
   G.st.sold+=q;G.st.deals++;G.st.earned+=rev;G.st.drugSold[id]=(G.st.drugSold[id]||0)+q;G.st.drugRev[id]=(G.st.drugRev[id]||0)+rev;if(rev>G.st.bigDeal)G.st.bigDeal=rev;
   hideQM();playSell();addLog('Sold '+q+' '+drug.name+' for '+fmt(rev)+' (+'+Math.round(rev/100)+' rep)');
   if(!G.stashOn&&G.rep>=150){G.stashOn=true;playUnlock();addLog('<span class="text-orange">★ STASH HOUSE UNLOCKED!</span>')}
+  checkTierUnlock();
   updateUI();showMarket();
+}
+function checkTierUnlock(){
+  const ut=getUnlockedTier();
+  if(ut<2&&G.rep>=300){setUnlockedTier(2);G.unlockedTier=2;playUnlock();
+    addLog('<span class="text-orange">★ TIER 2 UNLOCKED — SHOT CALLER!</span>');
+    setTimeout(()=>showModal('<h2>🔓 TIER 2 UNLOCKED</h2><p style="color:var(--orange);font-family:\'Press Start 2P\',monospace;font-size:10px">SHOT CALLER</p><p>New location: Fox Creek<br>New drug: Fentanyl<br>New weapons & gear<br>Start a new game at Tier 2 for 45 days!</p><div class="modal-buttons"><button class="btn w-full" onclick="hideModal()">HELL YEAH</button></div>'),400)}
+  else if(ut<3&&G.rep>=600){setUnlockedTier(3);G.unlockedTier=3;playUnlock();
+    addLog('<span class="text-orange">★ TIER 3 UNLOCKED — KINGPIN!</span>');
+    setTimeout(()=>showModal('<h2>👑 TIER 3 UNLOCKED</h2><p style="color:var(--orange);font-family:\'Press Start 2P\',monospace;font-size:10px">KINGPIN</p><p>New location: Kingswood Park<br>New drug: Ketamine<br>Motorcycle gangs, rival dealers, and more.<br>Start a new game at Tier 3 for 60 days!</p><div class="modal-buttons"><button class="btn w-full" onclick="hideModal()">LET\'S GO</button></div>'),400)}
 }
 
 function showTravel(){
   travelDest=null;const showScout=G.diff!=='hard';
   let h='<div style="padding:4px 0 8px;font-size:14px;color:var(--text-dim)">Choose destination:</div>';
-  LOCATIONS.forEach(loc=>{const cur=loc.id===G.location;let st='';
+  tierLocs().forEach(loc=>{const cur=loc.id===G.location;let st='',gangTag='';
     if(showScout&&!loc.isShop&&!cur&&invT()>0)st=getScoutTag(loc);
-    h+='<div class="travel-dest '+(cur?'current':'')+'" onclick="selDest(\''+loc.id+'\')"><div><div class="name">'+loc.name+st+'</div><div class="vibe">'+loc.vibe+'</div></div><div style="font-size:13px;color:var(--text-dim)">'+(loc.isShop?'🛒':'💊')+'</div></div>'});
+    if(G.tier>=3&&G.gang){const allies=GANGS.filter(x=>x.side===GANGS.find(g=>g.id===G.gang).side).map(x=>x.territory);const eterr=GANGS.filter(x=>G.enemies.includes(x.id)).map(x=>x.territory);
+      if(allies.includes(loc.id))gangTag=' <span style="font-size:10px;color:var(--green)">🏍️ ALLY</span>';
+      else if(eterr.includes(loc.id))gangTag=' <span style="font-size:10px;color:var(--red)">⚠️ HOSTILE</span>'}
+    h+='<div class="travel-dest '+(cur?'current':'')+'" onclick="selDest(\''+loc.id+'\')"><div><div class="name">'+loc.name+st+gangTag+'</div><div class="vibe">'+loc.vibe+'</div></div><div style="font-size:13px;color:var(--text-dim)">'+(loc.isShop?'🛒':'💊')+'</div></div>'});
   $('travel-phase1').innerHTML=h;$('travel-phase1').style.display='block';$('travel-phase2').style.display='none';showScreen('travel-screen');
 }
 function selDest(id){
@@ -349,15 +426,22 @@ function doTravel(mid){
   playTravel();const m=TRAVEL.find(t=>t.id===mid);let c=m.cost;if(G.freeT)c=0;if(G.bus2x&&mid==='bus')c*=2;
   G.cash-=c;G.location=travelDest;G.st.visits[travelDest]=(G.st.visits[travelDest]||0)+1;G.freeT=false;G.bus2x=false;
   let evt=null;const d=dm();
+  let rcmpMod=1,mugMod=1;
+  if(G.tier>=3&&G.gang){const g=GANGS.find(g=>g.id===G.gang);const allies=GANGS.filter(x=>x.side===g.side).map(x=>x.territory);const eterr=GANGS.filter(x=>G.enemies.includes(x.id)).map(x=>x.territory);
+    if(allies.includes(travelDest)){rcmpMod=.6;mugMod=.5}else if(eterr.includes(travelDest)){rcmpMod=1.4;mugMod=1.5}}
   if(m.risk>0){
-    if(ch((G.heat/100)*.4*m.risk*d.rcmpM))evt='rcmp';
-    else if(ch(getLoc(travelDest).danger*.2*m.risk*d.mugM))evt='mug';
+    if(ch((G.heat/100)*.4*m.risk*d.rcmpM*rcmpMod))evt='rcmp';
+    else if(ch(getLoc(travelDest).danger*.2*m.risk*d.mugM*mugMod))evt='mug';
+    else if(G.tier>=3&&ch(.15)&&m.risk>0)evt='rival';
     if(mid==='bus'&&ch(.15))addLog('Codiac Transit running late again...');
     if(mid==='buddy'&&ch(.1)){addLog("Buddy's car broke down. Lost $15 for a tow.");G.cash=Math.max(0,G.cash-15)}
   }
+  // gang ambush in enemy territory
+  if(!evt&&G.tier>=3&&G.enemies.length>0){const eterr=GANGS.filter(x=>G.enemies.includes(x.id)).map(x=>x.territory);
+    if(eterr.includes(travelDest)&&ch(.2))evt='ambush'}
   addLog('Traveled to '+getLoc(travelDest).name+' via '+m.name+(c>0?' ('+fmt(c)+')':''));
   advDay();market=genMarket();showScreen('game-screen');updateUI();
-  if(evt==='rcmp')setTimeout(rcmpEnc,300);else if(evt==='mug')setTimeout(mugEvent,300);else setTimeout(()=>{if(!checkEvent())checkTip()},300);
+  if(evt==='rcmp')setTimeout(rcmpEnc,300);else if(evt==='mug')setTimeout(mugEvent,300);else if(evt==='rival')setTimeout(rivalEnc,300);else if(evt==='ambush')setTimeout(gangAmbush,300);else setTimeout(()=>{if(!checkEvent()){if(!checkHookup())checkTip()}},300);
 }
 
 function advDay(){
@@ -371,7 +455,7 @@ function advDay(){
 function layLow(){
   const drop=rnd(15,30);G.heat=Math.max(0,G.heat-drop);
   addLog('Laid low for the day. Heat -'+Math.round(drop));market=genMarket();advDay();updateUI();
-  if(G.day<=G.maxDays){if(!checkEvent())checkTip()}
+  if(G.day<=G.maxDays){if(!checkEvent()){if(!checkHookup())checkTip()}}
 }
 
 function rcmpEnc(){
@@ -407,7 +491,8 @@ function mugEvent(){
 
 function checkEvent(){
   if(!ch(.35))return false;
-  const ev=EVENTS[rndI(0,EVENTS.length-1)];
+  const valid=EVENTS.filter(e=>!e.tier||e.tier<=G.tier);
+  const ev=valid[rndI(0,valid.length-1)];
   switch(ev.fx){
     case'spike':if(market[ev.drug])market[ev.drug].price=Math.round(market[ev.drug].price*ev.m);break;
     case'crash':if(market[ev.drug])market[ev.drug].price=Math.max(1,Math.round(market[ev.drug].price*ev.m));break;
@@ -417,6 +502,8 @@ function checkEvent(){
     case'bus2x':G.bus2x=true;break;
     case'free':G.freeT=true;break;
     case'cash':G.cash+=ev.v;break;
+    case'gangheal':
+      if(G.gang&&G.health<G.maxHP){G.health=Math.min(G.maxHP,G.health+20)}else return false;break;
     case'doc':
       if(G.health<G.maxHP&&G.cash>=200){
         showModal('<h2>🩹 STREET DOC</h2><p>'+ev.msg+'</p><div class="modal-buttons"><button class="btn w-full" onclick="docHeal()">PAY $200 (+40 HP)</button><button class="btn red small w-full" onclick="hideModal()">NAH</button></div>');
@@ -451,14 +538,14 @@ function hospHeal(){G.cash-=500;G.health=G.maxHP;addLog('Fully healed at hospita
 
 function showShop(){
   let h='<div style="padding:4px 0 8px;font-size:14px;color:var(--text-dim)">Weapons:</div>';
-  WEAPONS.forEach(w=>{const owned=G.boughtWp.includes(w.id),eq=G.weapon===w.id;
+  WEAPONS.filter(w=>!w.tier||w.tier<=G.tier).forEach(w=>{const owned=G.boughtWp.includes(w.id),eq=G.weapon===w.id;
     h+='<div class="shop-item"><div><div class="item-name">'+w.name+'</div><div class="item-desc">'+w.desc+'</div></div>';
     if(eq)h+='<span style="color:var(--green);font-size:14px">EQUIPPED</span>';
     else if(owned)h+='<button class="shop-buy-btn" onclick="eqWp(\''+w.id+'\')">EQUIP</button>';
     else h+='<button class="shop-buy-btn" onclick="buyWp(\''+w.id+'\')" '+(G.cash>=w.cost?'':'disabled')+'>'+fmt(w.cost)+'</button>';
     h+='</div>'});
   h+='<div style="padding:12px 0 8px;font-size:14px;color:var(--text-dim)">Inventory Upgrades:</div>';
-  INV_UP.forEach(u=>{const owned=G.boughtUp.includes(u.id);
+  INV_UP.filter(u=>!u.tier||u.tier<=G.tier).forEach(u=>{const owned=G.boughtUp.includes(u.id);
     h+='<div class="shop-item"><div><div class="item-name">'+u.name+'</div><div class="item-desc">'+u.desc+'</div></div>';
     if(owned)h+='<span style="color:var(--green);font-size:14px">OWNED</span>';
     else h+='<button class="shop-buy-btn" onclick="buyUp(\''+u.id+'\')" '+(G.cash>=u.cost?'':'disabled')+'>'+fmt(u.cost)+'</button>';
@@ -493,9 +580,13 @@ function gameOver(died){
   h+=gs('Net Worth',fmt(nw),nw<0)+gs('Cash',fmt(G.cash))+gs('Bank',fmt(G.bank))+gs('Debt',fmt(G.debt),G.debt>0)+gs('Days',surv+'/'+G.maxDays)+gs('Rep',Math.round(G.rep));
   h+=gs('Deals',G.st.deals)+gs('Biggest Deal',fmt(G.st.bigDeal))+gs('Total Earned',fmt(G.st.earned))+gs('Bought',G.st.bought+' units')+gs('Sold',G.st.sold+' units');
   h+=gs('RCMP Encounters',G.st.rcmp)+gs('Fights Won',G.st.rcmpW)+gs('Times Mugged',G.st.mugs)+gs('Most Visited',topL+' ('+topV+')');
+  const tn=G.tier===3?'Kingpin':G.tier===2?'Shot Caller':'Street Runner';h+=gs('Tier',tn);
+  if(G.gang)h+=gs('Gang',GANGS.find(g=>g.id===G.gang).name);
+  if(G.st.rivals)h+=gs('Rival Encounters',G.st.rivals);
+  if(G.st.hookups)h+=gs('Hookups',G.st.hookups);
   if(Object.keys(G.st.drugSold).length>0){h+='<div style="padding:12px 0 4px;font-family:\'Press Start 2P\',monospace;font-size:8px;color:var(--yellow)">DRUGS SOLD</div>';
     Object.entries(G.st.drugSold).forEach(([id,q])=>{h+=gs(DRUGS.find(d=>d.id===id).name,q+' / '+fmt(G.st.drugRev[id]||0))})}
-  h+='</div><div style="display:flex;flex-direction:column;gap:8px;align-items:center;padding:16px"><button class="btn w-full" onclick="showScreen(\'setup-screen\')">PLAY AGAIN</button><button class="btn yellow w-full" onclick="showScores()">HIGH SCORES</button><button class="btn red small w-full" onclick="showScreen(\'title-screen\')">MAIN MENU</button></div>';
+  h+='</div><div style="display:flex;flex-direction:column;gap:8px;align-items:center;padding:16px"><button class="btn w-full" onclick="showSetup()">PLAY AGAIN</button><button class="btn yellow w-full" onclick="showScores()">HIGH SCORES</button><button class="btn red small w-full" onclick="showScreen(\'title-screen\')">MAIN MENU</button></div>';
   $('gameover-screen').innerHTML=h;showScreen('gameover-screen');
 }
 function gs(l,v,neg){return '<div class="go-stat"><span class="label">'+l+'</span><span class="value '+(neg?'negative':'')+'">'+v+'</span></div>'}
@@ -514,14 +605,19 @@ function hasSave(){return !!loadSave()}
 function continueGame(){
   const save=loadSave();if(!save)return;
   G=save.G;market=save.market;if(!G.costBasis)G.costBasis={};
+  if(!G.tier)G.tier=1;if(!G.unlockedTier)G.unlockedTier=getUnlockedTier();if(!G.maxTier)G.maxTier=3;
+  if(!G.gang)G.gang=null;if(!G.gangRep)G.gangRep=0;if(!G.enemies)G.enemies=[];
+  if(!G.gangMission)G.gangMission=null;if(!G.gangMissionDays)G.gangMissionDays=0;
+  if(!G.st.rivals)G.st.rivals=0;if(!G.st.hookups)G.st.hookups=0;
   $('event-log').innerHTML='';
   addLog('Welcome back, '+G.name+'. Day '+G.day+'/'+G.maxDays+'.');
   updateUI();showScreen('game-screen');playBeat();
 }
 function newGame(){
-  if(hasSave()){showModal('<h2>⚠️ WARNING</h2><p>This will overwrite your existing save.</p><div class="modal-buttons"><button class="btn w-full" onclick="hideModal();showScreen(\'setup-screen\')">START NEW</button><button class="btn red small w-full" onclick="hideModal()">CANCEL</button></div>')}
-  else showScreen('setup-screen');
+  if(hasSave()){showModal('<h2>⚠️ WARNING</h2><p>This will overwrite your existing save.</p><div class="modal-buttons"><button class="btn w-full" onclick="hideModal();showSetup()">START NEW</button><button class="btn red small w-full" onclick="hideModal()">CANCEL</button></div>')}
+  else showSetup();
 }
+function showSetup(){selTier=1;renderTierSelector();showScreen('setup-screen')}
 function updateTitleBtns(){$('btn-continue').style.display=hasSave()?'':'none'}
 function exitMenu(){showModal('<h2>🚪 EXIT</h2><p>Return to main menu?</p><p style="font-size:14px;color:var(--text-dim)">Your game is auto-saved.</p><div class="modal-buttons"><button class="btn w-full" onclick="doExit()">EXIT</button><button class="btn red small w-full" onclick="hideModal()">CANCEL</button></div>')}
 function doExit(){hideModal();saveGame();stopBeat();stopHeartbeat();showScreen('title-screen')}
@@ -565,6 +661,145 @@ function checkTip(){
   playTipSnd();addLog('<span class="text-cyan">💬 '+tip+'</span>');
   showModal('<h2>💬 DEALER TIP</h2><p>'+tip+'</p><div class="modal-buttons"><button class="btn w-full" onclick="hideModal()">NOTED</button></div>');
 }
+// === GANG SYSTEM (Tier 3) ===
+function showGangs(){
+  if(G.tier<3){showScreen('game-screen');return}
+  let h='<div style="padding:4px 0 8px;font-size:14px;color:var(--text-dim)">Motorcycle Clubs'+(G.gang?' — You ride with <span class="text-orange">'+GANGS.find(g=>g.id===G.gang).name+'</span>':'')+'</div>';
+  GANGS.forEach(g=>{
+    const joined=G.gang===g.id,enemy=G.enemies.includes(g.id);
+    const avail=!G.gang&&!enemy;
+    const stars='★'.repeat(g.diff)+'☆'.repeat(5-g.diff);
+    let status='',sc='var(--text-dim)';
+    if(joined){status='JOINED';sc='var(--green)'}else if(enemy){status='ENEMY';sc='var(--red)'}else if(G.gang){status='NEUTRAL';sc='var(--text-dim)'}else{status='AVAILABLE';sc='var(--cyan)'}
+    h+='<div class="gang-card"><div class="gang-name">'+g.name+'</div><div class="gang-desc">'+g.desc+'</div><div class="gang-info">Territory: '+getLoc(g.territory).name+' | Diff: '+stars+'</div><div class="gang-status" style="color:'+sc+'">'+status+'</div>';
+    if(avail)h+='<button class="gang-btn" onclick="gangMission(\''+g.id+'\')">PROSPECT</button>';
+    h+='</div>'});
+  if(G.gang){h+='<div style="padding:8px 0;font-size:14px;color:var(--text-dim)">Gang Rep: <span class="text-orange">'+G.gangRep+'</span></div>'}
+  $('gang-list').innerHTML=h;showScreen('gang-screen');
+}
+function gangMission(gid){
+  const g=GANGS.find(x=>x.id===gid);
+  const missions=[
+    {desc:'Deliver a package to '+getLoc(g.territory).name+' without getting caught.',base:.6},
+    {desc:'Collect a debt from a dealer in '+getLoc(g.territory).name+'.',base:.5},
+    {desc:'Hold a stash for the club. Prove you can be trusted.',base:.55}
+  ];
+  const m=missions[rndI(0,missions.length-1)];
+  const repBonus=Math.min(.2,G.rep/2000);const heatPenalty=G.heat/200;
+  const successRate=cl(m.base+repBonus-heatPenalty-g.diff*.05,.2,.85);
+  showModal('<h2>🏍️ PROSPECT MISSION</h2><p style="font-size:14px;color:var(--orange)">'+g.name+'</p><p>'+m.desc+'</p><p style="font-size:13px;color:var(--text-dim)">Success chance: ~'+Math.round(successRate*100)+'%</p><div class="modal-buttons"><button class="btn w-full" onclick="doGangMission(\''+gid+'\','+successRate+')">DO IT</button><button class="btn red small w-full" onclick="hideModal()">NAH</button></div>');
+}
+function doGangMission(gid,rate){
+  hideModal();const g=GANGS.find(x=>x.id===gid);
+  if(ch(rate)){
+    G.gang=gid;G.gangRep=10;
+    // set enemies: opposite side becomes hostile
+    if(g.side==='ha')G.enemies=GANGS.filter(x=>x.side==='outlaws').map(x=>x.id);
+    else if(g.side==='outlaws')G.enemies=GANGS.filter(x=>x.side==='ha').map(x=>x.id);
+    // bacchus neutral — no auto enemies
+    G.rep+=25;
+    playUnlock();addLog('<span class="text-orange">🏍️ Patched in with '+g.name+'! +25 rep</span>');
+    if(G.enemies.length>0)addLog('<span class="text-red">⚠️ '+GANGS.filter(x=>G.enemies.includes(x.id)).map(x=>x.name).join(', ')+' are now hostile!</span>');
+    showModal('<h2>🏍️ PATCHED IN!</h2><p>You\'re now riding with <span style="color:var(--orange)">'+g.name+'</span>!</p><p style="font-size:14px;color:var(--text-dim)">Allied territory: cheaper prices, less heat.<br>Enemy territory: higher prices, more danger.</p><div class="modal-buttons"><button class="btn w-full" onclick="hideModal();showGangs()">RIDE ON</button></div>');
+  }else{
+    const hp=rndI(10,25);G.health-=hp;G.heat=Math.min(100,G.heat+10);
+    addLog('<span class="text-red">🏍️ Mission failed! -'+hp+' HP, +10 heat</span>');
+    showModal('<h2>🏍️ MISSION FAILED</h2><p>Things went sideways. '+g.name+' aren\'t impressed.</p><p class="text-red">-'+hp+' HP</p><div class="modal-buttons"><button class="btn w-full" onclick="hideModal();showGangs()">DAMN</button></div>');
+    if(G.health<=0){G.health=0;updateUI();setTimeout(()=>{hideModal();gameOver(true)},1000);return}
+  }
+  updateUI();
+}
+function gangAmbush(){
+  const egangs=GANGS.filter(x=>G.enemies.includes(x.id));const eg=egangs[rndI(0,egangs.length-1)];
+  const hp=rndI(15,30),cl2=Math.round(G.cash*rnd(.05,.15));
+  G.health-=hp;G.cash=Math.max(0,G.cash-cl2);G.heat=Math.min(100,G.heat+10);
+  addLog('<span class="text-red">🏍️ '+eg.name+' ambushed you! -'+hp+' HP, -'+fmt(cl2)+'</span>');
+  showModal('<h2>🏍️ AMBUSH!</h2><p>'+eg.name+' jumped you in '+getLoc(G.location).name+'!</p><p class="text-red">-'+hp+' HP, -'+fmt(cl2)+'</p><div class="modal-buttons"><button class="btn w-full" onclick="hideModal()">SURVIVE</button></div>');
+  if(G.health<=0){G.health=0;updateUI();setTimeout(()=>{hideModal();gameOver(true)},1000);return}
+  updateUI();
+}
+
+// === RIVAL DEALER ENCOUNTERS (Tier 3) ===
+function rivalEnc(){
+  G.st.rivals++;const loc=getLoc(G.location);
+  const wb=G.weapon?WEAPONS.find(w=>w.id===G.weapon).bonus:0;
+  showModal('<h2>🔪 RIVAL DEALER</h2><p>A rival dealer blocks your path in '+loc.name+'.</p><div class="modal-buttons"><button class="btn w-full" onclick="rivalFight()">FIGHT ('+Math.round((.35+wb)*100)+'%)</button><button class="btn yellow w-full" onclick="rivalPay()">PAY THEM OFF</button><button class="btn cyan w-full" onclick="rivalRun()">RUN</button><button class="btn w-full" style="border-color:var(--orange);color:var(--orange)" onclick="rivalNego()">NEGOTIATE</button></div>');
+}
+function rivalFight(){
+  hideModal();const wb=G.weapon?WEAPONS.find(w=>w.id===G.weapon).bonus:0;
+  if(ch(.35+wb)){
+    // win — steal drugs
+    const td=tierDrugs(),rd=td[rndI(0,td.length-1)],qty=rndI(3,12);
+    G.inv[rd.id]=(G.inv[rd.id]||0)+qty;G.rep+=15;G.heat=Math.min(100,G.heat+8);
+    addLog('<span class="text-green">🔪 Beat the rival! Stole '+qty+' '+rd.name+'. +15 rep</span>');
+    showModal('<h2>🔪 VICTORY!</h2><p>You beat the rival dealer and took their stash.</p><p class="text-green">+'+qty+' '+rd.name+', +15 rep</p><div class="modal-buttons"><button class="btn w-full" onclick="hideModal()">NICE</button></div>');
+  }else{
+    const hp=rndI(15,30);G.health-=hp;G.heat=Math.min(100,G.heat+5);
+    addLog('<span class="text-red">🔪 Lost the fight! -'+hp+' HP</span>');
+    showModal('<h2>🔪 DEFEATED</h2><p>The rival dealer got the best of you.</p><p class="text-red">-'+hp+' HP</p><div class="modal-buttons"><button class="btn w-full" onclick="hideModal()">OW</button></div>');
+    if(G.health<=0){G.health=0;updateUI();setTimeout(()=>{hideModal();gameOver(true)},1000);return}
+  }
+  updateUI();
+}
+function rivalPay(){
+  hideModal();const cost=Math.round(rnd(100,400));
+  if(G.cash<cost){addLog('<span class="text-red">🔪 Not enough cash to pay off. They rough you up. -15 HP</span>');G.health-=15;
+    if(G.health<=0){G.health=0;updateUI();setTimeout(()=>gameOver(true),500);return}
+    updateUI();return}
+  G.cash-=cost;addLog('<span class="text-yellow">🔪 Paid off the rival dealer. -'+fmt(cost)+'</span>');updateUI();
+}
+function rivalRun(){
+  hideModal();
+  if(ch(.5)){addLog('<span class="text-cyan">🔪 Escaped the rival dealer clean!</span>')}
+  else{const dl=dropDrugs(rnd(.1,.2));addLog('<span class="text-red">🔪 Couldn\'t escape! Dropped '+dl+' units.</span>')}
+  updateUI();
+}
+function rivalNego(){
+  hideModal();
+  if(ch(.3)){const tip=rndI(50,200);G.cash+=tip;G.rep+=5;
+    addLog('<span class="text-green">🔪 Negotiated a deal! +'+fmt(tip)+', +5 rep</span>');
+  }else{const loss=Math.round(G.cash*rnd(.1,.2));G.cash=Math.max(0,G.cash-loss);const dl=dropDrugs(rnd(.05,.15));
+    addLog('<span class="text-red">🔪 Negotiation failed! Robbed for '+fmt(loss)+(dl>0?', '+dl+' units':'')+'</span>')}
+  updateUI();
+}
+
+// === HOOKUP ENCOUNTERS (Tier 3) ===
+function checkHookup(){
+  if(G.tier<3)return false;
+  const loc=getLoc(G.location);const roughness=loc.danger;
+  const chance=.05+roughness*.08+(G.rep>400?.03:0);
+  if(!ch(chance))return false;
+  const names=['Someone','A local','A stranger','An admirer'];
+  const who=names[rndI(0,names.length-1)];
+  const baseCost=loc.priceMod>1.2?rndI(100,200):rndI(50,100);
+  const free=G.rep>400;
+  let h='<h2>💋 ENCOUNTER</h2><p>'+who+' is interested... for the right price.</p>';
+  if(free)h+='<p style="font-size:14px;color:var(--green)">Your reputation precedes you. No charge.</p>';
+  else h+='<p style="font-size:14px;color:var(--text-dim)">Cost: '+fmt(baseCost)+'</p>';
+  h+='<p style="font-size:12px;color:var(--text-dim)">+HP, +Rep. But there\'s always a risk...</p>';
+  h+='<div class="modal-buttons"><button class="btn w-full" onclick="doHookup('+(free?0:baseCost)+')">SURE</button><button class="btn red small w-full" onclick="hideModal()">NAH</button></div>';
+  showModal(h);return true;
+}
+function doHookup(cost){
+  hideModal();G.st.hookups++;
+  if(cost>0&&G.cash<cost){addLog('Not enough cash.');return}
+  G.cash-=cost;
+  const hpGain=rndI(15,20);G.health=Math.min(G.maxHP,G.health+hpGain);G.rep+=5;
+  addLog('<span class="text-cyan">💋 Good times. +'+hpGain+' HP, +5 rep'+(cost>0?' (-'+fmt(cost)+')':'')+'</span>');
+  // risk: robbery
+  if(ch(.15)){const rob=Math.round(G.cash*rnd(.1,.25));G.cash=Math.max(0,G.cash-rob);
+    addLog('<span class="text-red">💋 ...but you got robbed afterwards! -'+fmt(rob)+'</span>')}
+  // risk: heat
+  if(ch(.1)){G.heat=Math.min(100,G.heat+rndI(5,12));addLog('<span class="text-red">💋 Someone saw you. Heat increased.</span>')}
+  updateUI();
+}
+
+// === RCMP TASK FORCE EVENT (Tier 3) ===
+function rcmpTaskForce(){
+  G.heat=Math.min(100,G.heat+25);
+  addLog('<span class="text-red">🚔 RCMP task force set up specifically to catch you, '+G.name+'!</span>');
+}
+
 // === SOUND SYSTEM ===
 let sfxMuted=localStorage.getItem('dw_muted')==='true',sfxStarted=false,beatOn=false,hbOn=false,crackleOn=false;
 const STATIONS=[{name:'Boom Bap',bpm:88,sw:0.2},{name:'Trap',bpm:140,sw:0},{name:'G-Funk',bpm:92,sw:0.3},{name:'Lo-Fi',bpm:75,sw:0.15},{name:'East Coast',bpm:95,sw:0.1},{name:'Gritty',bpm:85,sw:0.05}];
@@ -575,7 +810,7 @@ function setStation(i){curStation=i;localStorage.setItem('dw_station',String(i))
 document.addEventListener('click',function _si(){if(!sfxStarted){Tone.start();sfxStarted=true;document.removeEventListener('click',_si,true)}},true);
 function sfxOk(){return sfxStarted&&!sfxMuted}
 function toggleMute(){sfxMuted=!sfxMuted;localStorage.setItem('dw_muted',sfxMuted);$('mute-btn').textContent=sfxMuted?'🔇':'🔊';if(sfxMuted){stopBeat();stopHeartbeat();stopVinylCrackle()}else{if(document.querySelector('#title-screen.active'))playVinylCrackle();if(document.querySelector('#game-screen.active'))playBeat();if(G.health&&G.health<=25&&G.health>0)startHeartbeat()}}
-document.addEventListener('click',function(e){if(e.target.closest('.action-btn,.btn,.drug-btn,.method-btn,.qty-btn,.diff-btn,.travel-dest,.shop-buy-btn,.qty-max-btn,.back-btn'))playTap()},true);
+document.addEventListener('click',function(e){if(e.target.closest('.action-btn,.btn,.drug-btn,.method-btn,.qty-btn,.diff-btn,.tier-btn,.travel-dest,.shop-buy-btn,.qty-max-btn,.back-btn,.gang-btn'))playTap()},true);
 
 // --- Audio Nodes ---
 const sfxVol=new Tone.Volume(-6).toDestination();
