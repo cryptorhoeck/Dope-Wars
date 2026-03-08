@@ -82,9 +82,12 @@ body::after{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:r
 html.low-hp .stat-val.health{animation:hpFlash 0.5s infinite}
 @keyframes hpFlash{0%,100%{color:var(--cyan)}50%{color:var(--red)}}
 .w-full{width:100%;max-width:280px}.text-green{color:var(--green)}.text-red{color:var(--red)}.text-yellow{color:var(--yellow)}.text-cyan{color:var(--cyan)}.text-orange{color:var(--orange)}
+.mute-btn{position:fixed;top:8px;right:8px;z-index:10000;background:none;border:none;font-size:20px;cursor:pointer;opacity:0.6;padding:4px}
 </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
 </head>
 <body>
+<button class="mute-btn" id="mute-btn" onclick="toggleMute()">🔊</button>
 <div id="title-screen" class="screen active">
   <div class="title-logo">DOPE<br>WARS</div>
   <div class="title-sub">- MONCTON -</div>
@@ -228,7 +231,7 @@ function stashT(){return Object.values(G.stash).reduce((s,v)=>s+v,0)}
 function getLoc(id){return LOCATIONS.find(l=>l.id===id)}
 function dm(){return DIFF[G.diff]}
 
-function showScreen(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));$(id).classList.add('active');if(id==='title-screen')updateTitleBtns()}
+function showScreen(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));$(id).classList.add('active');if(id==='title-screen'){updateTitleBtns();stopBeat();stopHeartbeat();playVinylCrackle()}else{stopVinylCrackle()}if(id==='gameover-screen'){stopBeat();stopHeartbeat()}}
 function showModal(h){$('modal-content').innerHTML=h;$('modal').classList.add('active')}
 function hideModal(){$('modal').classList.remove('active')}
 function showQM(h){$('qty-modal-content').innerHTML=h;$('qty-modal').classList.add('active')}
@@ -241,6 +244,7 @@ function updateUI(){
   if(G.weapon){$('weapon-bar').style.display='block';const w=WEAPONS.find(w=>w.id===G.weapon);$('weapon-bar').textContent='🔫 '+w.name+' ('+w.desc+')';}else{$('weapon-bar').style.display='none'}
   $('btn-market').disabled=loc.isShop;
   document.documentElement.classList.toggle('low-hp',G.health<=25);
+  if(G.health<=25&&G.health>0)startHeartbeat();else stopHeartbeat();
 }
 function addLog(msg){const log=$('event-log'),p=document.createElement('div');p.style.cssText='margin-bottom:4px;border-bottom:1px solid #1a1a1a;padding-bottom:4px';p.innerHTML='<span style="color:var(--dim-green)">[Day '+G.day+']</span> '+msg;log.prepend(p);while(log.children.length>50)log.removeChild(log.lastChild)}
 
@@ -257,7 +261,7 @@ function startGame(){
   market=genMarket();$('event-log').innerHTML='';
   addLog('Welcome to Moncton, '+G.name+'. 30 days to make your fortune.');
   addLog('You owe the loan shark '+fmt(G.debt)+'. Interest compounds daily.');
-  updateUI();showScreen('game-screen');
+  updateUI();showScreen('game-screen');playGameStart();setTimeout(playBeat,600);
 }
 
 function genMarket(){
@@ -302,7 +306,7 @@ function buyDrug(id){
   showQM('<h2>BUY '+drug.name+'</h2><p>Price: '+fmt(m.price)+' each</p><div class="qty-controls"><button class="qty-btn" onclick="abq(-10)">--</button><button class="qty-btn" onclick="abq(-1)">-</button><span class="qty-display" id="bq-d">1</span><button class="qty-btn" onclick="abq(1)">+</button><button class="qty-btn" onclick="abq(10)">++</button></div><div class="qty-info" id="bq-t">Total: '+fmt(m.price)+'</div><button class="qty-max-btn" onclick="abq(9999)">MAX ('+maxB+')</button><div class="modal-buttons"><button class="btn w-full" onclick="confBuy()">BUY</button><button class="btn red small w-full" onclick="hideQM()">CANCEL</button></div>');
 }
 function abq(d){const m=market[window._bd];if(d===9999)window._bq=window._bm;else window._bq=cl(window._bq+d,1,window._bm);$('bq-d').textContent=window._bq;$('bq-t').textContent='Total: '+fmt(window._bq*m.price)}
-function confBuy(){const m=market[window._bd],q=window._bq,c=q*m.price,id=window._bd;const oldQ=G.inv[id]||0,oldCB=G.costBasis[id]||0;G.costBasis[id]=Math.round((oldCB*oldQ+c)/(oldQ+q));G.cash-=c;G.inv[id]=(G.inv[id]||0)+q;m.supply-=q;G.st.bought+=q;G.st.deals++;hideQM();addLog('Bought '+q+' '+DRUGS.find(d=>d.id===id).name+' for '+fmt(c));updateUI();showMarket()}
+function confBuy(){const m=market[window._bd],q=window._bq,c=q*m.price,id=window._bd;const oldQ=G.inv[id]||0,oldCB=G.costBasis[id]||0;G.costBasis[id]=Math.round((oldCB*oldQ+c)/(oldQ+q));G.cash-=c;G.inv[id]=(G.inv[id]||0)+q;m.supply-=q;G.st.bought+=q;G.st.deals++;hideQM();playBuy();addLog('Bought '+q+' '+DRUGS.find(d=>d.id===id).name+' for '+fmt(c));updateUI();showMarket()}
 
 function sellDrug(id){
   const drug=DRUGS.find(d=>d.id===id),owned=G.inv[id]||0;if(owned<=0)return;
@@ -314,8 +318,8 @@ function asq(d){if(d===9999)window._sq=window._sm;else window._sq=cl(window._sq+
 function confSell(){const q=window._sq,rev=q*window._sp,id=window._sd,drug=DRUGS.find(d=>d.id===id);G.cash+=rev;G.inv[id]-=q;if(G.inv[id]<=0){delete G.inv[id];if(!G.stash[id])delete G.costBasis[id]}
   G.rep+=Math.round(rev/100);G.heat=Math.min(100,G.heat+q*.3*dm().heatM);
   G.st.sold+=q;G.st.deals++;G.st.earned+=rev;G.st.drugSold[id]=(G.st.drugSold[id]||0)+q;G.st.drugRev[id]=(G.st.drugRev[id]||0)+rev;if(rev>G.st.bigDeal)G.st.bigDeal=rev;
-  hideQM();addLog('Sold '+q+' '+drug.name+' for '+fmt(rev)+' (+'+Math.round(rev/100)+' rep)');
-  if(!G.stashOn&&G.rep>=150){G.stashOn=true;addLog('<span class="text-orange">★ STASH HOUSE UNLOCKED!</span>')}
+  hideQM();playSell();addLog('Sold '+q+' '+drug.name+' for '+fmt(rev)+' (+'+Math.round(rev/100)+' rep)');
+  if(!G.stashOn&&G.rep>=150){G.stashOn=true;playUnlock();addLog('<span class="text-orange">★ STASH HOUSE UNLOCKED!</span>')}
   updateUI();showMarket();
 }
 
@@ -335,7 +339,7 @@ function selDest(id){
   $('travel-phase2').innerHTML=h;$('travel-phase1').style.display='none';$('travel-phase2').style.display='block';
 }
 function doTravel(mid){
-  const m=TRAVEL.find(t=>t.id===mid);let c=m.cost;if(G.freeT)c=0;if(G.bus2x&&mid==='bus')c*=2;
+  playTravel();const m=TRAVEL.find(t=>t.id===mid);let c=m.cost;if(G.freeT)c=0;if(G.bus2x&&mid==='bus')c*=2;
   G.cash-=c;G.location=travelDest;G.st.visits[travelDest]=(G.st.visits[travelDest]||0)+1;G.freeT=false;G.bus2x=false;
   let evt=null;const d=dm();
   if(m.risk>0){
@@ -350,7 +354,7 @@ function doTravel(mid){
 }
 
 function advDay(){
-  G.day++;const d=dm();
+  G.day++;playDayAdvance();const d=dm();
   if(G.debt>0){const i=Math.round(G.debt*d.int);G.debt+=i;if(i>0)addLog('Loan shark interest: +'+fmt(i))}
   G.heat=Math.max(0,G.heat-rnd(1,3));
   saveGame();
@@ -364,7 +368,7 @@ function layLow(){
 }
 
 function rcmpEnc(){
-  G.st.rcmp++;const wb=G.weapon?WEAPONS.find(w=>w.id===G.weapon).bonus:0;
+  playRCMP();G.st.rcmp++;const wb=G.weapon?WEAPONS.find(w=>w.id===G.weapon).bonus:0;
   showModal('<h2>🚔 RCMP!</h2><p>"Pull over! RCMP!"</p><p style="font-size:14px;color:var(--text-dim)">The Mounties spotted you.</p><div class="modal-buttons"><button class="btn w-full" onclick="rcmpFight()">FIGHT ('+Math.round((.3+wb)*100)+'%)</button><button class="btn yellow w-full" onclick="rcmpRun()">RUN (50%)</button></div>');
 }
 function rcmpFight(){
@@ -386,7 +390,7 @@ function rcmpRun(){
 function dropDrugs(fr){let t=0;Object.keys(G.inv).forEach(id=>{const d=Math.ceil(G.inv[id]*fr);if(d>0){G.inv[id]-=d;if(G.inv[id]<=0){delete G.inv[id];if(!G.stash[id])delete G.costBasis[id]}t+=d}});return t}
 
 function mugEvent(){
-  G.st.mugs++;const cl2=Math.round(G.cash*rnd(.05,.2)),dl=dropDrugs(rnd(.05,.15)),hp=rndI(5,15);
+  playMugging();G.st.mugs++;const cl2=Math.round(G.cash*rnd(.05,.2)),dl=dropDrugs(rnd(.05,.15)),hp=rndI(5,15);
   G.cash-=cl2;G.health-=hp;
   addLog('<span class="text-red">Jumped! -'+fmt(cl2)+', -'+hp+' HP'+(dl>0?', -'+dl+' units':'')+'</span>');
   showModal('<h2>💀 MUGGED!</h2><p>Someone jumped you in '+getLoc(G.location).name+'.</p><p class="text-red">-'+fmt(cl2)+', -'+hp+' HP'+(dl>0?', -'+dl+' units':'')+'</p><div class="modal-buttons"><button class="btn w-full" onclick="hideModal()">DAMN</button></div>');
@@ -409,10 +413,10 @@ function checkEvent(){
     case'doc':
       if(G.health<G.maxHP&&G.cash>=200){
         showModal('<h2>🩹 STREET DOC</h2><p>'+ev.msg+'</p><div class="modal-buttons"><button class="btn w-full" onclick="docHeal()">PAY $200 (+40 HP)</button><button class="btn red small w-full" onclick="hideModal()">NAH</button></div>');
-        addLog(ev.msg);updateUI();return true}
+        playDoc();addLog(ev.msg);updateUI();return true}
       return false;
   }
-  if(ev.fx!=='doc'){addLog('<span class="text-yellow">📰 '+ev.msg+'</span>');
+  if(ev.fx!=='doc'){playNews();addLog('<span class="text-yellow">📰 '+ev.msg+'</span>');
     showModal('<h2>📰 NEWS</h2><p>'+ev.msg+'</p><div class="modal-buttons"><button class="btn w-full" onclick="hideModal()">OK</button></div>')}
   updateUI();return true;
 }
@@ -421,12 +425,12 @@ function docHeal(){G.cash-=200;G.health=Math.min(G.maxHP,G.health+40);hideModal(
 function showBank(){bankQV=0;$('bank-balance').textContent='Balance: '+fmt(G.bank);$('bank-cash').textContent='Cash: '+fmt(G.cash);$('bank-qty').textContent='$0';$('bank-qty').style.color='var(--green)';showScreen('bank-screen')}
 function bankQty(d){bankQV+=d;if(bankQV>0)bankQV=Math.min(bankQV,G.cash);else bankQV=Math.max(bankQV,-G.bank);$('bank-qty').textContent=(bankQV>=0?'+':'')+fmt(bankQV);$('bank-qty').style.color=bankQV>=0?'var(--green)':'var(--red)'}
 function bankMax(){bankQV=G.cash;$('bank-qty').textContent='+'+fmt(bankQV);$('bank-qty').style.color='var(--green)'}
-function bankAction(){if(bankQV===0)return;G.cash-=bankQV;G.bank+=bankQV;addLog(bankQV>0?'Deposited '+fmt(bankQV)+' in bank.':'Withdrew '+fmt(-bankQV)+' from bank.');bankQV=0;updateUI();showBank()}
+function bankAction(){if(bankQV===0)return;playBank();G.cash-=bankQV;G.bank+=bankQV;addLog(bankQV>0?'Deposited '+fmt(bankQV)+' in bank.':'Withdrew '+fmt(-bankQV)+' from bank.');bankQV=0;updateUI();showBank()}
 
 function showLoan(){loanQV=0;$('loan-debt').textContent='Debt: '+fmt(G.debt);$('loan-cash').textContent='Cash: '+fmt(G.cash);$('loan-qty').textContent='$0';showScreen('loan-screen')}
 function loanQty(d){loanQV=cl(loanQV+d,0,Math.min(G.cash,G.debt));$('loan-qty').textContent=fmt(loanQV)}
 function loanMax(){loanQV=Math.min(G.cash,G.debt);$('loan-qty').textContent=fmt(loanQV)}
-function loanAction(){if(loanQV<=0)return;G.cash-=loanQV;G.debt-=loanQV;addLog('Paid '+fmt(loanQV)+' to loan shark. Remaining: '+fmt(G.debt));if(G.debt<=0){G.debt=0;addLog('<span class="text-green">★ DEBT PAID OFF!</span>')}loanQV=0;updateUI();showLoan()}
+function loanAction(){if(loanQV<=0)return;playLoan();G.cash-=loanQV;G.debt-=loanQV;addLog('Paid '+fmt(loanQV)+' to loan shark. Remaining: '+fmt(G.debt));if(G.debt<=0){G.debt=0;addLog('<span class="text-green">★ DEBT PAID OFF!</span>')}loanQV=0;updateUI();showLoan()}
 
 function showHeal(){
   const need=G.maxHP-G.health;let h='<div class="info">Health: '+G.health+'/'+G.maxHP+'</div>';
@@ -471,10 +475,12 @@ function stDep(id){const n=G.inv[id]||0;if(n<=0)return;G.stash[id]=(G.stash[id]|
 function stWd(id){const n=G.stash[id]||0,sp=G.invCap-invT(),t=Math.min(n,sp);if(t<=0)return;G.inv[id]=(G.inv[id]||0)+t;G.stash[id]-=t;if(G.stash[id]<=0)delete G.stash[id];addLog('Took '+t+' '+DRUGS.find(d=>d.id===id).name+' from stash');updateUI();showStash()}
 
 function gameOver(died){
+  stopBeat();stopHeartbeat();
   localStorage.removeItem('dw_save');
   const nw=G.cash+G.bank-G.debt,surv=Math.min(G.day,G.maxDays);
   let topL='None',topV=0;Object.entries(G.st.visits).forEach(([id,c])=>{if(c>topV){topV=c;topL=getLoc(id).name}});
   saveHS(G.name,nw,G.diff,surv);
+  if(died)playDeath();else{playVictory();const _hs=JSON.parse(localStorage.getItem('dw_scores')||'[]');if(_hs.some(s=>s.name===G.name&&s.nw===nw))setTimeout(playHighScore,800)}
   let h=died?'<h1>💀 GAME OVER</h1><p style="font-size:18px;color:var(--red);text-align:center;margin-bottom:16px">'+G.name+' didn\'t make it.</p>':'<h1 class="win">🏆 TIME\'S UP</h1><p style="font-size:18px;color:var(--green);text-align:center;margin-bottom:16px">'+G.name+' survived '+surv+' days.</p>';
   h+='<div class="go-stats">';
   h+=gs('Net Worth',fmt(nw),nw<0)+gs('Cash',fmt(G.cash))+gs('Bank',fmt(G.bank))+gs('Debt',fmt(G.debt),G.debt>0)+gs('Days',surv+'/'+G.maxDays)+gs('Rep',Math.round(G.rep));
@@ -503,7 +509,7 @@ function continueGame(){
   G=save.G;market=save.market;if(!G.costBasis)G.costBasis={};
   $('event-log').innerHTML='';
   addLog('Welcome back, '+G.name+'. Day '+G.day+'/'+G.maxDays+'.');
-  updateUI();showScreen('game-screen');
+  updateUI();showScreen('game-screen');playBeat();
 }
 function newGame(){
   if(hasSave()){showModal('<h2>⚠️ WARNING</h2><p>This will overwrite your existing save.</p><div class="modal-buttons"><button class="btn w-full" onclick="hideModal();showScreen(\'setup-screen\')">START NEW</button><button class="btn red small w-full" onclick="hideModal()">CANCEL</button></div>')}
@@ -547,9 +553,103 @@ function checkTip(){
   let c;if(G.diff==='easy')c=.4;else if(G.diff==='normal')c=.25;else c=.08;
   if(!ch(c))return;
   const tip=getDealerTip();
-  addLog('<span class="text-cyan">💬 '+tip+'</span>');
+  playTipSnd();addLog('<span class="text-cyan">💬 '+tip+'</span>');
   showModal('<h2>💬 DEALER TIP</h2><p>'+tip+'</p><div class="modal-buttons"><button class="btn w-full" onclick="hideModal()">NOTED</button></div>');
 }
+// === SOUND SYSTEM ===
+let sfxMuted=localStorage.getItem('dw_muted')==='true',sfxStarted=false,beatOn=false,hbOn=false,crackleOn=false;
+document.addEventListener('click',function _si(){if(!sfxStarted){Tone.start();sfxStarted=true;document.removeEventListener('click',_si,true)}},true);
+function sfxOk(){return sfxStarted&&!sfxMuted}
+function toggleMute(){sfxMuted=!sfxMuted;localStorage.setItem('dw_muted',sfxMuted);$('mute-btn').textContent=sfxMuted?'🔇':'🔊';if(sfxMuted){stopBeat();stopHeartbeat();stopVinylCrackle()}}
+document.addEventListener('click',function(e){if(e.target.closest('.action-btn,.btn,.drug-btn,.method-btn,.qty-btn,.diff-btn,.travel-dest,.shop-buy-btn,.qty-max-btn,.back-btn'))playTap()},true);
+
+// --- Audio Nodes ---
+const sfxVol=new Tone.Volume(-6).toDestination();
+const sfxRev=new Tone.Reverb({decay:1.5,wet:0.2}).connect(sfxVol);
+const bKick=new Tone.MembraneSynth({pitchDecay:0.05,octaves:6,oscillator:{type:'sine'},envelope:{attack:0.001,decay:0.3,sustain:0,release:0.1},volume:-8}).connect(sfxVol);
+const bSub=new Tone.Synth({oscillator:{type:'sine'},envelope:{attack:0.001,decay:0.4,sustain:0,release:0.1},volume:-16}).connect(sfxVol);
+const _sf2=new Tone.Filter(3500,'bandpass').connect(sfxVol);
+const bSnare=new Tone.NoiseSynth({noise:{type:'white'},envelope:{attack:0.001,decay:0.13,sustain:0,release:0.05},volume:-10}).connect(_sf2);
+const _hf2=new Tone.Filter(8000,'highpass').connect(sfxVol);
+const bHh=new Tone.NoiseSynth({noise:{type:'white'},envelope:{attack:0.001,decay:0.04,sustain:0,release:0.01},volume:-18}).connect(_hf2);
+const hbSyn=new Tone.MembraneSynth({pitchDecay:0.08,octaves:4,envelope:{attack:0.01,decay:0.25,sustain:0,release:0.1},volume:-6}).connect(sfxVol);
+const pluck=new Tone.PluckSynth({volume:-6}).connect(sfxRev);
+const uiSyn=new Tone.Synth({oscillator:{type:'sine'},envelope:{attack:0.001,decay:0.1,sustain:0,release:0.05},volume:-8}).connect(sfxVol);
+const tapSyn=new Tone.Synth({oscillator:{type:'square'},envelope:{attack:0.001,decay:0.025,sustain:0,release:0.01},volume:-20}).connect(sfxVol);
+const metalSyn=new Tone.MetalSynth({frequency:200,envelope:{attack:0.001,decay:0.06,sustain:0,release:0.01},harmonicity:5.1,modulationIndex:32,resonance:4000,octaves:1.5,volume:-18}).connect(sfxRev);
+const sirenSyn=new Tone.Synth({oscillator:{type:'square'},envelope:{attack:0.005,decay:0.05,sustain:0.8,release:0.1},volume:-12}).connect(sfxVol);
+const _dd2=new Tone.Distortion(0.4).connect(sfxVol);
+const dropSyn=new Tone.MembraneSynth({pitchDecay:0.1,octaves:8,envelope:{attack:0.01,decay:1.2,sustain:0,release:0.5},volume:-6}).connect(_dd2);
+const _scf2=new Tone.Filter(5000,'lowpass').connect(sfxVol);
+const scratchSyn=new Tone.NoiseSynth({noise:{type:'white'},envelope:{attack:0.001,decay:0.12,sustain:0,release:0.05},volume:-8}).connect(_scf2);
+const _cf2=new Tone.Filter(2000,'lowpass').connect(sfxRev);
+const ch1s=new Tone.Synth({oscillator:{type:'sawtooth'},envelope:{attack:0.01,decay:0.5,sustain:0.2,release:0.8},volume:-14}).connect(_cf2);
+const ch2s=new Tone.Synth({oscillator:{type:'sawtooth'},envelope:{attack:0.01,decay:0.5,sustain:0.2,release:0.8},volume:-14}).connect(_cf2);
+const ch3s=new Tone.Synth({oscillator:{type:'sawtooth'},envelope:{attack:0.01,decay:0.5,sustain:0.2,release:0.8},volume:-14}).connect(_cf2);
+const flatSyn=new Tone.Synth({oscillator:{type:'sine'},envelope:{attack:0.05,decay:2,sustain:0,release:0.5},volume:-8}).connect(sfxVol);
+const _swf2=new Tone.Filter(2000,'lowpass').connect(sfxVol);
+const sweepSyn=new Tone.Synth({oscillator:{type:'sawtooth'},envelope:{attack:0.05,decay:0.3,sustain:0,release:0.1},volume:-14}).connect(_swf2);
+
+// --- Beat Loop ---
+let beatParts=[];
+function playBeat(){
+  if(beatOn)return;if(!sfxOk())return;beatOn=true;
+  Tone.Transport.bpm.value=88;Tone.Transport.swing=0.2;Tone.Transport.swingSubdivision='8n';
+  let hs=0;
+  beatParts.push(new Tone.Loop(t=>{if(!sfxOk())return;bKick.triggerAttackRelease('C1','8n',t);bSub.triggerAttackRelease('C1','8n',t)},'2n').start(0));
+  beatParts.push(new Tone.Loop(t=>{if(!sfxOk())return;bSnare.triggerAttackRelease('16n',t)},'2n').start('4n'));
+  beatParts.push(new Tone.Loop(t=>{if(!sfxOk())return;bHh.volume.value=hs%2===0?-18:-24;bHh.triggerAttackRelease('32n',t);hs++},'8n').start(0));
+  Tone.Transport.start();
+}
+function stopBeat(){
+  if(!beatOn)return;beatOn=false;
+  beatParts.forEach(p=>{p.stop();p.dispose()});beatParts=[];
+  Tone.Transport.stop();Tone.Transport.position=0;
+}
+
+// --- Heartbeat ---
+let hbInt=null;
+function startHeartbeat(){
+  if(hbOn)return;hbOn=true;
+  function hb(){if(!sfxOk()||!hbOn)return;hbSyn.triggerAttackRelease('E1','16n',Tone.now(),0.5);setTimeout(()=>{if(sfxOk()&&hbOn)hbSyn.triggerAttackRelease('E1','16n',Tone.now(),0.3)},150)}
+  hb();hbInt=setInterval(hb,2000);
+}
+function stopHeartbeat(){if(!hbOn)return;hbOn=false;clearInterval(hbInt);hbInt=null}
+
+// --- Vinyl Crackle ---
+let crNodes=[];
+function playVinylCrackle(){
+  if(crackleOn||!sfxOk())return;crackleOn=true;
+  const n=new Tone.Noise('brown').start(),g=new Tone.Gain(0.03).connect(sfxVol);
+  const f=new Tone.Filter(800,'lowpass').connect(g);
+  const l=new Tone.LFO(0.3,0.01,0.04).start().connect(g.gain);
+  n.connect(f);crNodes=[n,f,g,l];
+}
+function stopVinylCrackle(){
+  if(!crackleOn)return;crackleOn=false;
+  crNodes.forEach(x=>{try{if(x.stop)x.stop()}catch(e){}x.dispose()});crNodes=[];
+}
+
+// --- Sound FX ---
+function playTap(){if(!sfxOk())return;tapSyn.triggerAttackRelease('C7','64n')}
+function playBuy(){if(!sfxOk())return;pluck.triggerAttack('E5',Tone.now());setTimeout(()=>{if(sfxOk())pluck.triggerAttack('A5')},80)}
+function playSell(){if(!sfxOk())return;pluck.triggerAttack('A3',Tone.now());hbSyn.triggerAttackRelease('G1','8n',Tone.now()+0.05,0.4)}
+function playTravel(){if(!sfxOk())return;const n=Tone.now();sweepSyn.triggerAttack('C3',n);sweepSyn.frequency.linearRampTo(523,0.25,n);sweepSyn.triggerRelease(n+0.3);setTimeout(()=>{sweepSyn.frequency.value=131},600)}
+function playDayAdvance(){if(!sfxOk())return;const n=Tone.now();bKick.triggerAttackRelease('C1','16n',n);bSnare.triggerAttackRelease('32n',n+0.08);bKick.triggerAttackRelease('C1','16n',n+0.16);bHh.triggerAttackRelease('32n',n+0.24)}
+function playBank(){if(!sfxOk())return;const n=Tone.now();metalSyn.triggerAttackRelease('C6','32n',n,0.5);metalSyn.triggerAttackRelease('E6','32n',n+0.06,0.6);metalSyn.triggerAttackRelease('G6','32n',n+0.12,0.7)}
+function playLoan(){if(!sfxOk())return;dropSyn.triggerAttackRelease('C1','4n')}
+function playRCMP(){if(!sfxOk())return;const n=Tone.now();for(let i=0;i<10;i++){sirenSyn.triggerAttackRelease(i%2===0?'B4':'E5','16n',n+i*0.1)}}
+function playMugging(){if(!sfxOk())return;dropSyn.triggerAttackRelease('E1','2n')}
+function playNews(){if(!sfxOk())return;scratchSyn.triggerAttackRelease('8n');_scf2.frequency.value=5000;_scf2.frequency.rampTo(200,0.12);setTimeout(()=>{_scf2.frequency.value=5000},300)}
+function playTipSnd(){if(!sfxOk())return;uiSyn.triggerAttackRelease('G5','16n',Tone.now(),0.3)}
+function playDoc(){if(!sfxOk())return;const n=Tone.now();uiSyn.triggerAttackRelease('C5','16n',n);uiSyn.triggerAttackRelease('E5','16n',n+0.12);uiSyn.triggerAttackRelease('G5','16n',n+0.24)}
+function playUnlock(){if(!sfxOk())return;const n=Tone.now();pluck.triggerAttack('C4',n);setTimeout(()=>pluck.triggerAttack('E4'),100);setTimeout(()=>pluck.triggerAttack('G4'),200);setTimeout(()=>pluck.triggerAttack('C5'),300)}
+function playGameStart(){if(!sfxOk())return;const n=Tone.now();bKick.triggerAttackRelease('C1','16n',n);bKick.triggerAttackRelease('C1','16n',n+0.15);bKick.triggerAttackRelease('C1','16n',n+0.3);bSnare.triggerAttackRelease('8n',n+0.45)}
+function playDeath(){if(!sfxOk())return;flatSyn.triggerAttackRelease('A4','2n')}
+function playVictory(){if(!sfxOk())return;ch1s.triggerAttackRelease('C4','2n');ch2s.triggerAttackRelease('E4','2n');ch3s.triggerAttackRelease('G4','2n')}
+function playHighScore(){if(!sfxOk())return;const notes=['C4','D4','E4','G4','A4','C5'];notes.forEach((note,i)=>{setTimeout(()=>{if(sfxOk())pluck.triggerAttack(note)},i*70)});setTimeout(()=>{if(!sfxOk())return;ch1s.triggerAttackRelease('C4','2n');ch2s.triggerAttackRelease('E4','2n');ch3s.triggerAttackRelease('G4','2n')},notes.length*70+50)}
+
+$('mute-btn').textContent=sfxMuted?'🔇':'🔊';
 updateTitleBtns();
 if('serviceWorker' in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>{});
 </script>
