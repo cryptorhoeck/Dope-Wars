@@ -88,7 +88,16 @@ html.low-hp .stat-val.health{animation:hpFlash 0.5s infinite}
 .station-picker.active{display:block}
 .station-opt{padding:8px 12px;font-family:'VT323',monospace;font-size:16px;color:var(--text);cursor:pointer}
 .station-opt:active,.station-opt.sel{color:var(--green);background:rgba(51,255,51,0.1)}
+.ad-banner{position:fixed;bottom:0;left:0;right:0;height:50px;z-index:50;display:none;justify-content:center;align-items:center}
+body.has-banner .ad-banner{display:flex}
+body.has-banner{padding-bottom:calc(var(--safe-bottom) + 50px)}
+.ad-placeholder{width:100%;height:100%;background:#1a1a1a;border:1px dashed #333;display:flex;align-items:center;justify-content:center;font-family:'VT323',monospace;font-size:14px;color:#444}
+.ad-reward-btn{background:none;border:1px solid var(--orange);color:var(--orange);font-family:'VT323',monospace;font-size:16px;padding:8px 12px;cursor:pointer;width:100%;text-align:left;display:flex;justify-content:space-between;align-items:center;margin-top:6px}
+.ad-reward-btn:active{background:rgba(255,136,0,0.1)}.ad-reward-btn:disabled{opacity:0.3;pointer-events:none}
+.ad-countdown{font-family:'Press Start 2P',monospace;font-size:24px;color:var(--orange);text-align:center;margin:16px 0}
+.ad-uses{font-size:12px;color:var(--text-dim);text-align:center;margin-top:4px}
 </style>
+<!-- <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-XXXXXXXXXXXXXXXX" crossorigin="anonymous"></script> -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
 </head>
 <body>
@@ -177,6 +186,7 @@ html.low-hp .stat-val.health{animation:hpFlash 0.5s infinite}
     <div class="qty-controls"><button class="qty-btn" onclick="loanQty(-100)">--</button><button class="qty-btn" onclick="loanQty(-10)">-</button><span class="qty-display" id="loan-qty">$0</span><button class="qty-btn" onclick="loanQty(10)">+</button><button class="qty-btn" onclick="loanQty(100)">++</button></div>
     <button class="qty-max-btn" onclick="loanMax()">PAY MAX</button>
     <button class="btn red w-full" onclick="loanAction()">PAY DEBT</button>
+    <button class="ad-reward-btn" id="loan-ad-btn" onclick="adDebt()" style="display:none;max-width:280px"><span>📺 Watch Ad (-$500 debt)</span><span class="ad-uses" style="font-size:12px">3 left</span></button>
   </div>
 </div>
 <div id="heal-screen" class="screen">
@@ -196,9 +206,26 @@ html.low-hp .stat-val.health{animation:hpFlash 0.5s infinite}
   <div class="screen-header"><button class="back-btn" onclick="showScreen('title-screen')">←</button><span class="screen-title">HIGH SCORES</span></div>
   <div style="padding:16px" id="scores-list"></div>
 </div>
+<div class="ad-banner" id="ad-banner">
+  <!-- AdSense banner placeholder — replace with real ad unit when live:
+  <ins class="adsbygoogle" style="display:inline-block;width:320px;height:50px" data-ad-client="ca-pub-XXXXXXXXXXXXXXXX" data-ad-slot="XXXXXXXXXX"></ins>
+  <script>(adsbygoogle = window.adsbygoogle || []).push({});</script>
+  -->
+  <div class="ad-placeholder" id="ad-placeholder">AD</div>
+</div>
 <div class="modal-overlay" id="modal"><div class="modal" id="modal-content"></div></div>
 <div class="modal-overlay" id="qty-modal"><div class="modal" id="qty-modal-content"></div></div>
 <script>
+// === AD CONFIGURATION ===
+const AD_CONFIG={
+  adProvider:'placeholder',     // 'placeholder','adsense','adsterra'
+  bannerEnabled:true,           // show bottom banner during gameplay
+  rewardedEnabled:true,         // allow rewarded ad options
+  rewardedMaxPerGame:3,         // max rewarded ads per game session
+  bannerAdUnit:'PLACEHOLDER',   // replace with real ad unit ID
+  rewardedAdUnit:'PLACEHOLDER'  // replace with real ad unit ID
+};
+
 const DRUGS=[{id:'weed',name:'Weed',unit:'g',min:8,max:12},{id:'xanax',name:'Xanax',unit:'pill',min:5,max:10},{id:'percs',name:'Percs',unit:'pill',min:10,max:20},{id:'molly',name:'Molly',unit:'cap',min:10,max:25},{id:'oxy',name:'Oxy',unit:'pill',min:20,max:50},{id:'dillies',name:'Dillies',unit:'pill',min:15,max:30},{id:'crack',name:'Crack',unit:'rock',min:20,max:40},{id:'meth',name:'Meth',unit:'g',min:60,max:150},{id:'cocaine',name:'Cocaine',unit:'g',min:80,max:120},{id:'heroin',name:'Heroin',unit:'g',min:80,max:200}];
 const LOCATIONS=[{id:'lewisville',name:'Lewisville',vibe:'Quiet suburban',danger:.1,rcmp:.15,priceMod:1.1,supplyMod:.7},{id:'stgeorge',name:'St George',vibe:'Rough',danger:.7,rcmp:.45,priceMod:.95,supplyMod:1.2},{id:'dogpatch',name:'The Dogpatch',vibe:'Sketchy',danger:.6,rcmp:.35,priceMod:.9,supplyMod:1.15},{id:'joyce',name:'Joyce Avenue',vibe:'NB Housing',danger:.4,rcmp:.35,priceMod:1,supplyMod:1},{id:'pinetree',name:'Pinetree TP',vibe:'Nice trailer park',danger:.2,rcmp:.15,priceMod:1.05,supplyMod:.85},{id:'ackmin',name:'Ackmin Court',vibe:'Crackhead central',danger:.9,rcmp:.1,priceMod:.75,supplyMod:1.4},{id:'lakeside',name:'Lakeside Estates',vibe:'Sketch trailer park',danger:.7,rcmp:.25,priceMod:.9,supplyMod:1.2},{id:'marshes',name:'Marshes TP',vibe:'Dirtbag TP',danger:.85,rcmp:.1,priceMod:.8,supplyMod:1.15},{id:'cornhill',name:'Cornhill',vibe:'Meth heads',danger:.85,rcmp:.1,priceMod:.85,supplyMod:1.1},{id:'mall',name:'Champlain Mall',vibe:'Shopping hub',danger:0,rcmp:.35,priceMod:1,supplyMod:0,isShop:true}];
 const TRAVEL=[{id:'walk',name:'Walking',cost:0,risk:1.5,desc:'Free but risky'},{id:'bus',name:'Codiac Transit',cost:4,risk:.7,desc:'$3.50 - might be late'},{id:'buddy',name:"Buddy's Beater",cost:20,risk:.5,desc:'$15-25 - might break down'},{id:'cab',name:'Cab / Uber',cost:40,risk:0,desc:'$30-50 - safe & fast'}];
@@ -238,7 +265,7 @@ function stashT(){return Object.values(G.stash).reduce((s,v)=>s+v,0)}
 function getLoc(id){return LOCATIONS.find(l=>l.id===id)}
 function dm(){return DIFF[G.diff]}
 
-function showScreen(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));$(id).classList.add('active');if(id==='title-screen'){updateTitleBtns();stopBeat();stopHeartbeat();playVinylCrackle()}else{stopVinylCrackle()}if(id==='gameover-screen'){stopBeat();stopHeartbeat()}}
+function showScreen(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));$(id).classList.add('active');if(id==='title-screen'){updateTitleBtns();stopBeat();stopHeartbeat();playVinylCrackle()}else{stopVinylCrackle()}if(id==='gameover-screen'){stopBeat();stopHeartbeat()}const gp=['game-screen','travel-screen','market-screen','bank-screen','loan-screen','heal-screen','stash-screen'];document.body.classList.toggle('has-banner',AD_CONFIG.bannerEnabled&&gp.includes(id))}
 function showModal(h){$('modal-content').innerHTML=h;$('modal').classList.add('active')}
 function hideModal(){$('modal').classList.remove('active')}
 function showQM(h){$('qty-modal-content').innerHTML=h;$('qty-modal').classList.add('active')}
@@ -249,6 +276,7 @@ function updateUI(){
   $('s-bank').textContent=fmt(G.bank);$('s-debt').textContent=fmt(G.debt);$('s-rep').textContent=Math.round(G.rep);$('s-inv').textContent=invT()+'/'+G.invCap;
   const loc=getLoc(G.location);$('s-loc').textContent=loc.name;$('s-vibe').textContent=loc.vibe;
   if(G.weapon){$('weapon-bar').style.display='block';const w=WEAPONS.find(w=>w.id===G.weapon);$('weapon-bar').textContent='🔫 '+w.name+' ('+w.desc+')';}else{$('weapon-bar').style.display='none'}
+  if(AD_CONFIG.rewardedEnabled){const ar=adRemaining();$('s-vibe').textContent=loc.vibe+(ar>0?' | 📺'+ar:'')}
   document.documentElement.classList.toggle('low-hp',G.health<=25);
   if(G.health<=25&&G.health>0)startHeartbeat();else stopHeartbeat();
 }
@@ -262,7 +290,7 @@ function startGame(){
   const d=DIFF[diff];
   G={name,diff,day:1,maxDays:30,cash:Math.round(2000*d.cashM),debt:Math.round(5500*d.debtM),bank:0,health:100,maxHP:100,heat:0,rep:0,
     location:'lewisville',inv:{},stash:{},costBasis:{},invCap:100,weapon:null,stashOn:false,boughtUp:[],boughtWp:[],
-    freeT:false,bus2x:false,
+    freeT:false,bus2x:false,adUses:0,
     st:{deals:0,bigDeal:0,bought:0,sold:0,drugSold:{},drugRev:{},rcmp:0,rcmpW:0,rcmpR:0,mugs:0,visits:{},earned:0}};
   market=genMarket();$('event-log').innerHTML='';
   addLog('Welcome to Moncton, '+G.name+'. 30 days to make your fortune.');
@@ -434,7 +462,9 @@ function bankQty(d){bankQV+=d;if(bankQV>0)bankQV=Math.min(bankQV,G.cash);else ba
 function bankMax(){bankQV=G.cash;$('bank-qty').textContent='+'+fmt(bankQV);$('bank-qty').style.color='var(--green)'}
 function bankAction(){if(bankQV===0)return;playBank();G.cash-=bankQV;G.bank+=bankQV;addLog(bankQV>0?'Deposited '+fmt(bankQV)+' in bank.':'Withdrew '+fmt(-bankQV)+' from bank.');bankQV=0;updateUI();showBank()}
 
-function showLoan(){loanQV=0;$('loan-debt').textContent='Debt: '+fmt(G.debt);$('loan-cash').textContent='Cash: '+fmt(G.cash);$('loan-qty').textContent='$0';showScreen('loan-screen')}
+function showLoan(){loanQV=0;$('loan-debt').textContent='Debt: '+fmt(G.debt);$('loan-cash').textContent='Cash: '+fmt(G.cash);$('loan-qty').textContent='$0';
+  const ab=$('loan-ad-btn');if(ab){if(canWatchAd()&&G.debt>0){ab.style.display='flex';ab.querySelector('.ad-uses').textContent=adRemaining()+' left'}else{ab.style.display='none'}}
+  showScreen('loan-screen')}
 function loanQty(d){loanQV=cl(loanQV+d,0,Math.min(G.cash,G.debt));$('loan-qty').textContent=fmt(loanQV)}
 function loanMax(){loanQV=Math.min(G.cash,G.debt);$('loan-qty').textContent=fmt(loanQV)}
 function loanAction(){if(loanQV<=0)return;playLoan();G.cash-=loanQV;G.debt-=loanQV;addLog('Paid '+fmt(loanQV)+' to loan shark. Remaining: '+fmt(G.debt));if(G.debt<=0){G.debt=0;addLog('<span class="text-green">★ DEBT PAID OFF!</span>')}loanQV=0;updateUI();showLoan()}
@@ -443,7 +473,8 @@ function showHeal(){
   const need=G.maxHP-G.health;let h='<div class="info">Health: '+G.health+'/'+G.maxHP+'</div>';
   if(need<=0)h+='<div class="info" style="margin-top:8px">Full health!</div>';
   else{h+='<div class="shop-item"><div><div class="item-name">Corner Store</div><div class="item-desc">Energy drink + snack (+15 HP)</div></div><button class="shop-buy-btn" onclick="heal(25,15,\'corner store\')" '+(G.cash>=25?'':'disabled')+'>$25</button></div>';
-    h+='<div class="shop-item"><div><div class="item-name">Moncton Hospital</div><div class="item-desc">Full heal (RCMP risk if heat high)</div></div><button class="shop-buy-btn" onclick="hospHeal()" '+(G.cash>=500?'':'disabled')+'>$500</button></div>'}
+    h+='<div class="shop-item"><div><div class="item-name">Moncton Hospital</div><div class="item-desc">Full heal (RCMP risk if heat high)</div></div><button class="shop-buy-btn" onclick="hospHeal()" '+(G.cash>=500?'':'disabled')+'>$500</button></div>';
+    if(canWatchAd())h+='<button class="ad-reward-btn" onclick="adHeal()"><span>📺 Watch Ad (+25 HP)</span><span style="font-size:12px">FREE — '+adRemaining()+' left</span></button>'}
   $('heal-options').innerHTML=h;showScreen('heal-screen');
 }
 function heal(c,a,s){G.cash-=c;G.health=Math.min(G.maxHP,G.health+a);addLog('Healed +'+a+' HP at '+s+' ('+fmt(c)+')');updateUI();showHeal()}
@@ -495,7 +526,9 @@ function gameOver(died){
   h+=gs('RCMP Encounters',G.st.rcmp)+gs('Fights Won',G.st.rcmpW)+gs('Times Mugged',G.st.mugs)+gs('Most Visited',topL+' ('+topV+')');
   if(Object.keys(G.st.drugSold).length>0){h+='<div style="padding:12px 0 4px;font-family:\'Press Start 2P\',monospace;font-size:8px;color:var(--yellow)">DRUGS SOLD</div>';
     Object.entries(G.st.drugSold).forEach(([id,q])=>{h+=gs(DRUGS.find(d=>d.id===id).name,q+' / '+fmt(G.st.drugRev[id]||0))})}
-  h+='</div><div style="display:flex;flex-direction:column;gap:8px;align-items:center;padding:16px"><button class="btn w-full" onclick="showScreen(\'setup-screen\')">PLAY AGAIN</button><button class="btn yellow w-full" onclick="showScores()">HIGH SCORES</button><button class="btn red small w-full" onclick="showScreen(\'title-screen\')">MAIN MENU</button></div>';
+  h+='</div><div style="display:flex;flex-direction:column;gap:8px;align-items:center;padding:16px">';
+  if(died&&canWatchAd())h+='<button class="ad-reward-btn" onclick="adRevive()" style="max-width:280px;justify-content:center;text-align:center;border-color:var(--green);color:var(--green)"><span>📺 Watch Ad (2nd Chance — 25 HP)</span></button>';
+  h+='<button class="btn w-full" onclick="showScreen(\'setup-screen\')">PLAY AGAIN</button><button class="btn yellow w-full" onclick="showScores()">HIGH SCORES</button><button class="btn red small w-full" onclick="showScreen(\'title-screen\')">MAIN MENU</button></div>';
   $('gameover-screen').innerHTML=h;showScreen('gameover-screen');
 }
 function gs(l,v,neg){return '<div class="go-stat"><span class="label">'+l+'</span><span class="value '+(neg?'negative':'')+'">'+v+'</span></div>'}
@@ -513,7 +546,7 @@ function loadSave(){try{const s=localStorage.getItem('dw_save');return s?JSON.pa
 function hasSave(){return !!loadSave()}
 function continueGame(){
   const save=loadSave();if(!save)return;
-  G=save.G;market=save.market;if(!G.costBasis)G.costBasis={};
+  G=save.G;market=save.market;if(!G.costBasis)G.costBasis={};if(G.adUses===undefined)G.adUses=0;
   $('event-log').innerHTML='';
   addLog('Welcome back, '+G.name+'. Day '+G.day+'/'+G.maxDays+'.');
   updateUI();showScreen('game-screen');playBeat();
@@ -525,6 +558,19 @@ function newGame(){
 function updateTitleBtns(){$('btn-continue').style.display=hasSave()?'':'none'}
 function exitMenu(){showModal('<h2>🚪 EXIT</h2><p>Return to main menu?</p><p style="font-size:14px;color:var(--text-dim)">Your game is auto-saved.</p><div class="modal-buttons"><button class="btn w-full" onclick="doExit()">EXIT</button><button class="btn red small w-full" onclick="hideModal()">CANCEL</button></div>')}
 function doExit(){hideModal();saveGame();stopBeat();stopHeartbeat();showScreen('title-screen')}
+function adRemaining(){return AD_CONFIG.rewardedMaxPerGame-(G.adUses||0)}
+function canWatchAd(){return AD_CONFIG.rewardedEnabled&&adRemaining()>0}
+function showRewardedAd(callback){
+  if(!canWatchAd())return;G.adUses=(G.adUses||0)+1;
+  if(AD_CONFIG.adProvider==='placeholder'){
+    let sec=5;
+    showModal('<h2>📺 AD</h2><div class="ad-countdown" id="ad-cd">'+sec+'</div><p style="font-size:14px;color:var(--text-dim)">Ad playing...</p><p class="ad-uses">Ads remaining: '+adRemaining()+'</p>');
+    const iv=setInterval(()=>{sec--;if(sec<=0){clearInterval(iv);hideModal();callback()}else{const el=$('ad-cd');if(el)el.textContent=sec}},1000);
+  } else { callback(); }
+}
+function adHeal(){showRewardedAd(()=>{G.health=Math.min(G.maxHP,G.health+25);addLog('<span class="text-orange">📺 Watched ad — +25 HP</span>');updateUI();showHeal()})}
+function adDebt(){showRewardedAd(()=>{const r=Math.min(500,G.debt);G.debt-=r;addLog('<span class="text-orange">📺 Watched ad — -'+fmt(r)+' debt</span>');if(G.debt<=0){G.debt=0;addLog('<span class="text-green">★ DEBT PAID OFF!</span>')}updateUI();showLoan()})}
+function adRevive(){showRewardedAd(()=>{G.health=25;addLog('<span class="text-orange">📺 Watched ad — revived with 25 HP!</span>');saveGame();updateUI();showScreen('game-screen');playBeat()})}
 function getScoutTag(loc){
   if(invT()===0)return '';
   const fuzz=rnd(-.12,.12),pm=loc.priceMod+fuzz;
