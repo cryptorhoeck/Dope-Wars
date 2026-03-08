@@ -207,11 +207,8 @@ body.has-banner{padding-bottom:calc(var(--safe-bottom) + 50px)}
   <div style="padding:16px" id="scores-list"></div>
 </div>
 <div class="ad-banner" id="ad-banner">
-  <!-- AdSense banner placeholder — replace with real ad unit when live:
-  <ins class="adsbygoogle" style="display:inline-block;width:320px;height:50px" data-ad-client="ca-pub-XXXXXXXXXXXXXXXX" data-ad-slot="XXXXXXXXXX"></ins>
+  <ins class="adsbygoogle" style="display:inline-block;width:320px;height:50px" data-ad-client="ca-pub-6123306809265263" data-ad-slot="9081493371"></ins>
   <script>(adsbygoogle = window.adsbygoogle || []).push({});</script>
-  -->
-  <div class="ad-placeholder" id="ad-placeholder">AD</div>
 </div>
 <div class="modal-overlay" id="modal"><div class="modal" id="modal-content"></div></div>
 <div class="modal-overlay" id="qty-modal"><div class="modal" id="qty-modal-content"></div></div>
@@ -222,8 +219,8 @@ const AD_CONFIG={
   bannerEnabled:true,           // show bottom banner during gameplay
   rewardedEnabled:true,         // allow rewarded ad options
   rewardedMaxPerGame:3,         // max rewarded ads per game session
-  bannerAdUnit:'ca-pub-6123306809265263',  // client ID — replace with ad unit ID when created
-  rewardedAdUnit:'PLACEHOLDER'  // replace with real ad unit ID
+  bannerAdUnit:'9081493371',    // AdSense banner ad unit ID
+  rewardedAdUnit:'PLACEHOLDER'  // replace with real rewarded ad unit ID when created
 };
 
 const DRUGS=[{id:'weed',name:'Weed',unit:'g',min:8,max:12},{id:'xanax',name:'Xanax',unit:'pill',min:5,max:10},{id:'percs',name:'Percs',unit:'pill',min:10,max:20},{id:'molly',name:'Molly',unit:'cap',min:10,max:25},{id:'oxy',name:'Oxy',unit:'pill',min:20,max:50},{id:'dillies',name:'Dillies',unit:'pill',min:15,max:30},{id:'crack',name:'Crack',unit:'rock',min:20,max:40},{id:'meth',name:'Meth',unit:'g',min:60,max:150},{id:'cocaine',name:'Cocaine',unit:'g',min:80,max:120},{id:'heroin',name:'Heroin',unit:'g',min:80,max:200}];
