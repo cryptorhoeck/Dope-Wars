@@ -83,11 +83,18 @@ html.low-hp .stat-val.health{animation:hpFlash 0.5s infinite}
 @keyframes hpFlash{0%,100%{color:var(--cyan)}50%{color:var(--red)}}
 .w-full{width:100%;max-width:280px}.text-green{color:var(--green)}.text-red{color:var(--red)}.text-yellow{color:var(--yellow)}.text-cyan{color:var(--cyan)}.text-orange{color:var(--orange)}
 .mute-btn{position:fixed;top:8px;right:8px;z-index:10000;background:none;border:none;font-size:20px;cursor:pointer;opacity:0.6;padding:4px}
+.radio-btn{position:fixed;top:8px;right:36px;z-index:10000;background:none;border:none;font-size:20px;cursor:pointer;opacity:0.6;padding:4px}
+.station-picker{display:none;position:fixed;top:36px;right:8px;z-index:10001;background:var(--panel);border:2px solid var(--green);padding:4px 0;min-width:140px}
+.station-picker.active{display:block}
+.station-opt{padding:8px 12px;font-family:'VT323',monospace;font-size:16px;color:var(--text);cursor:pointer}
+.station-opt:active,.station-opt.sel{color:var(--green);background:rgba(51,255,51,0.1)}
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
 </head>
 <body>
 <button class="mute-btn" id="mute-btn" onclick="toggleMute()">🔊</button>
+<button class="radio-btn" id="radio-btn" onclick="toggleRadio()">📻</button>
+<div id="station-picker" class="station-picker"></div>
 <div id="title-screen" class="screen active">
   <div class="title-logo">DOPE<br>WARS</div>
   <div class="title-sub">- MONCTON -</div>
@@ -134,7 +141,7 @@ html.low-hp .stat-val.health{animation:hpFlash 0.5s infinite}
     <button class="action-btn" onclick="showBank()"><span class="icon">🏦</span>Bank</button>
     <button class="action-btn" onclick="showLoan()"><span class="icon">🦈</span>Loan Shark</button>
     <button class="action-btn" onclick="showHeal()"><span class="icon">🩹</span>Heal</button>
-    <button class="action-btn" onclick="showShop()"><span class="icon">🔫</span>Shop</button>
+    <button class="action-btn" onclick="exitMenu()"><span class="icon">🚪</span>Menu</button>
     <button class="action-btn" onclick="showStash()"><span class="icon">📦</span>Stash</button>
     <button class="action-btn" onclick="layLow()"><span class="icon">😎</span>Lay Low</button>
     <button class="action-btn" onclick="saveGame(true)"><span class="icon">💾</span>Save</button>
@@ -242,7 +249,6 @@ function updateUI(){
   $('s-bank').textContent=fmt(G.bank);$('s-debt').textContent=fmt(G.debt);$('s-rep').textContent=Math.round(G.rep);$('s-inv').textContent=invT()+'/'+G.invCap;
   const loc=getLoc(G.location);$('s-loc').textContent=loc.name;$('s-vibe').textContent=loc.vibe;
   if(G.weapon){$('weapon-bar').style.display='block';const w=WEAPONS.find(w=>w.id===G.weapon);$('weapon-bar').textContent='🔫 '+w.name+' ('+w.desc+')';}else{$('weapon-bar').style.display='none'}
-  $('btn-market').disabled=loc.isShop;
   document.documentElement.classList.toggle('low-hp',G.health<=25);
   if(G.health<=25&&G.health>0)startHeartbeat();else stopHeartbeat();
 }
@@ -280,7 +286,8 @@ function genMarket(){
 }
 
 function showMarket(){
-  const loc=getLoc(G.location);if(loc.isShop)return;
+  const loc=getLoc(G.location);if(loc.isShop){showShop();return}
+  document.querySelector('#market-screen .screen-title').textContent='BUY / SELL';
   const showCmp=G.diff!=='hard';
   let h='';
   DRUGS.forEach(drug=>{
@@ -456,7 +463,7 @@ function showShop(){
     if(owned)h+='<span style="color:var(--green);font-size:14px">OWNED</span>';
     else h+='<button class="shop-buy-btn" onclick="buyUp(\''+u.id+'\')" '+(G.cash>=u.cost?'':'disabled')+'>'+fmt(u.cost)+'</button>';
     h+='</div>'});
-  $('shop-list').innerHTML=h;showScreen('shop-screen');
+  $('market-list').innerHTML=h;document.querySelector('#market-screen .screen-title').textContent='SHOP';showScreen('market-screen');
 }
 function buyWp(id){const w=WEAPONS.find(w=>w.id===id);G.cash-=w.cost;G.boughtWp.push(id);G.weapon=id;addLog('Bought '+w.name+' ('+fmt(w.cost)+')');updateUI();showShop()}
 function eqWp(id){G.weapon=id;addLog('Equipped '+WEAPONS.find(w=>w.id===id).name);updateUI();showShop()}
@@ -516,6 +523,8 @@ function newGame(){
   else showScreen('setup-screen');
 }
 function updateTitleBtns(){$('btn-continue').style.display=hasSave()?'':'none'}
+function exitMenu(){showModal('<h2>🚪 EXIT</h2><p>Return to main menu?</p><p style="font-size:14px;color:var(--text-dim)">Your game is auto-saved.</p><div class="modal-buttons"><button class="btn w-full" onclick="doExit()">EXIT</button><button class="btn red small w-full" onclick="hideModal()">CANCEL</button></div>')}
+function doExit(){hideModal();saveGame();stopBeat();stopHeartbeat();showScreen('title-screen')}
 function getScoutTag(loc){
   if(invT()===0)return '';
   const fuzz=rnd(-.12,.12),pm=loc.priceMod+fuzz;
@@ -558,9 +567,14 @@ function checkTip(){
 }
 // === SOUND SYSTEM ===
 let sfxMuted=localStorage.getItem('dw_muted')==='true',sfxStarted=false,beatOn=false,hbOn=false,crackleOn=false;
+const STATIONS=[{name:'Boom Bap',bpm:88,sw:0.2},{name:'Trap',bpm:140,sw:0},{name:'G-Funk',bpm:92,sw:0.3},{name:'Lo-Fi',bpm:75,sw:0.15},{name:'East Coast',bpm:95,sw:0.1},{name:'Gritty',bpm:85,sw:0.05}];
+let curStation=parseInt(localStorage.getItem('dw_station')||'0');
+function renderStations(){let h='';STATIONS.forEach((s,i)=>{h+='<div class="station-opt'+(i===curStation?' sel':'')+'" onclick="setStation('+i+')">'+s.name+'</div>'});$('station-picker').innerHTML=h}
+function toggleRadio(){$('station-picker').classList.toggle('active');renderStations()}
+function setStation(i){curStation=i;localStorage.setItem('dw_station',String(i));$('station-picker').classList.remove('active');if(beatOn){stopBeat();playBeat()}}
 document.addEventListener('click',function _si(){if(!sfxStarted){Tone.start();sfxStarted=true;document.removeEventListener('click',_si,true)}},true);
 function sfxOk(){return sfxStarted&&!sfxMuted}
-function toggleMute(){sfxMuted=!sfxMuted;localStorage.setItem('dw_muted',sfxMuted);$('mute-btn').textContent=sfxMuted?'🔇':'🔊';if(sfxMuted){stopBeat();stopHeartbeat();stopVinylCrackle()}}
+function toggleMute(){sfxMuted=!sfxMuted;localStorage.setItem('dw_muted',sfxMuted);$('mute-btn').textContent=sfxMuted?'🔇':'🔊';if(sfxMuted){stopBeat();stopHeartbeat();stopVinylCrackle()}else{if(document.querySelector('#title-screen.active'))playVinylCrackle();if(document.querySelector('#game-screen.active'))playBeat();if(G.health&&G.health<=25&&G.health>0)startHeartbeat()}}
 document.addEventListener('click',function(e){if(e.target.closest('.action-btn,.btn,.drug-btn,.method-btn,.qty-btn,.diff-btn,.travel-dest,.shop-buy-btn,.qty-max-btn,.back-btn'))playTap()},true);
 
 // --- Audio Nodes ---
@@ -594,11 +608,15 @@ const sweepSyn=new Tone.Synth({oscillator:{type:'sawtooth'},envelope:{attack:0.0
 let beatParts=[];
 function playBeat(){
   if(beatOn)return;if(!sfxOk())return;beatOn=true;
-  Tone.Transport.bpm.value=88;Tone.Transport.swing=0.2;Tone.Transport.swingSubdivision='8n';
-  let hs=0;
-  beatParts.push(new Tone.Loop(t=>{if(!sfxOk())return;bKick.triggerAttackRelease('C1','8n',t);bSub.triggerAttackRelease('C1','8n',t)},'2n').start(0));
-  beatParts.push(new Tone.Loop(t=>{if(!sfxOk())return;bSnare.triggerAttackRelease('16n',t)},'2n').start('4n'));
-  beatParts.push(new Tone.Loop(t=>{if(!sfxOk())return;bHh.volume.value=hs%2===0?-18:-24;bHh.triggerAttackRelease('32n',t);hs++},'8n').start(0));
+  const st=STATIONS[curStation];Tone.Transport.bpm.value=st.bpm;Tone.Transport.swing=st.sw;Tone.Transport.swingSubdivision='8n';let hs=0;
+  switch(curStation){
+  case 0:beatParts.push(new Tone.Loop(t=>{if(!sfxOk())return;bKick.triggerAttackRelease('C1','8n',t);bSub.triggerAttackRelease('C1','8n',t)},'2n').start(0));beatParts.push(new Tone.Loop(t=>{if(!sfxOk())return;bSnare.triggerAttackRelease('16n',t)},'2n').start('4n'));beatParts.push(new Tone.Loop(t=>{if(!sfxOk())return;bHh.volume.value=hs%2===0?-18:-24;bHh.triggerAttackRelease('32n',t);hs++},'8n').start(0));break;
+  case 1:beatParts.push(new Tone.Loop(t=>{if(!sfxOk())return;bKick.triggerAttackRelease('C1','4n',t);bSub.triggerAttackRelease('C1','4n',t,0.8)},'1n').start(0));beatParts.push(new Tone.Loop(t=>{if(!sfxOk())return;bSnare.triggerAttackRelease('16n',t)},'2n').start('4n'));beatParts.push(new Tone.Loop(t=>{if(!sfxOk())return;bHh.volume.value=hs%4===0?-16:-22;bHh.triggerAttackRelease('64n',t);hs++},'16n').start(0));break;
+  case 2:beatParts.push(new Tone.Loop(t=>{if(!sfxOk())return;bKick.triggerAttackRelease('C1','8n',t)},'2n').start(0));beatParts.push(new Tone.Loop(t=>{if(!sfxOk())return;bKick.triggerAttackRelease('C1','16n',t)},'1n').start('4n+8n'));beatParts.push(new Tone.Loop(t=>{if(!sfxOk())return;bSnare.triggerAttackRelease('16n',t)},'2n').start('4n'));beatParts.push(new Tone.Loop(t=>{if(!sfxOk())return;bHh.volume.value=hs%2===0?-18:-22;bHh.triggerAttackRelease('32n',t);hs++},'8n').start(0));break;
+  case 3:beatParts.push(new Tone.Loop(t=>{if(!sfxOk())return;bKick.triggerAttackRelease('C1','8n',t);bSub.triggerAttackRelease('C1','8n',t,0.4)},'2n').start(0));beatParts.push(new Tone.Loop(t=>{if(!sfxOk())return;bSnare.triggerAttackRelease('16n',t)},'2n').start('4n'));beatParts.push(new Tone.Loop(t=>{if(!sfxOk())return;bHh.volume.value=-22;bHh.triggerAttackRelease('32n',t)},'4n').start('8n'));break;
+  case 4:beatParts.push(new Tone.Loop(t=>{if(!sfxOk())return;bKick.triggerAttackRelease('C1','8n',t)},'4n').start(0));beatParts.push(new Tone.Loop(t=>{if(!sfxOk())return;bSnare.triggerAttackRelease('16n',t)},'2n').start('4n'));beatParts.push(new Tone.Loop(t=>{if(!sfxOk())return;bHh.volume.value=hs%2===0?-16:-20;bHh.triggerAttackRelease('32n',t);hs++},'8n').start(0));break;
+  case 5:beatParts.push(new Tone.Loop(t=>{if(!sfxOk())return;bKick.triggerAttackRelease('C1','4n',t);bSub.triggerAttackRelease('C1','4n',t,0.5)},'1n').start(0));beatParts.push(new Tone.Loop(t=>{if(!sfxOk())return;bKick.triggerAttackRelease('C1','16n',t)},'1n').start('2n+4n'));beatParts.push(new Tone.Loop(t=>{if(!sfxOk())return;bSnare.triggerAttackRelease('8n',t)},'2n').start('4n'));beatParts.push(new Tone.Loop(t=>{if(!sfxOk())return;bHh.triggerAttackRelease('32n',t)},'4n').start('8n'));break;
+  }
   Tone.Transport.start();
 }
 function stopBeat(){
