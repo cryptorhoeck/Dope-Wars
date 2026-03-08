@@ -6,8 +6,9 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#0a0a0a">
-<link rel="manifest" href="manifest.json">
-<link rel="apple-touch-icon" href="icons/icon-192.png">
+<meta name="description" content="Buy low, sell high, don't get caught.">
+<link rel="manifest" href="./manifest.json">
+<link rel="apple-touch-icon" href="./icons/icon-192.png">
 <title>Dope Wars: Moncton</title>
 <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
 <style>
@@ -478,7 +479,7 @@ function showScores(){const s=JSON.parse(localStorage.getItem('dw_scores')||'[]'
   else s.forEach((e,i)=>{h+='<div class="score-entry"><span class="score-rank">#'+(i+1)+'</span><span class="score-name">'+e.name+' <span style="font-size:12px;color:var(--text-dim)">('+e.diff+')</span></span><span class="score-cash">'+fmt(e.nw)+'</span></div>'});
   $('scores-list').innerHTML=h;showScreen('scores-screen');
 }
-if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
+if('serviceWorker' in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>{});
 </script>
 </body>
 </html>
