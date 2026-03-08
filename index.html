@@ -89,7 +89,8 @@ html.low-hp .stat-val.health{animation:hpFlash 0.5s infinite}
   <div class="title-logo">DOPE<br>WARS</div>
   <div class="title-sub">- MONCTON -</div>
   <div style="height:40px"></div>
-  <button class="btn" onclick="showScreen('setup-screen')">NEW GAME</button>
+  <button class="btn cyan" id="btn-continue" onclick="continueGame()" style="display:none">CONTINUE</button>
+  <button class="btn" onclick="newGame()">NEW GAME</button>
   <button class="btn yellow" onclick="showScores()">HIGH SCORES</button>
 </div>
 <div id="setup-screen" class="screen">
@@ -133,6 +134,7 @@ html.low-hp .stat-val.health{animation:hpFlash 0.5s infinite}
     <button class="action-btn" onclick="showShop()"><span class="icon">🔫</span>Shop</button>
     <button class="action-btn" onclick="showStash()"><span class="icon">📦</span>Stash</button>
     <button class="action-btn" onclick="layLow()"><span class="icon">😎</span>Lay Low</button>
+    <button class="action-btn" onclick="saveGame(true)"><span class="icon">💾</span>Save</button>
   </div>
   <div id="event-log" style="flex:1;overflow-y:auto;padding:8px;font-size:15px;color:var(--text-dim)"></div>
 </div>
@@ -226,7 +228,7 @@ function stashT(){return Object.values(G.stash).reduce((s,v)=>s+v,0)}
 function getLoc(id){return LOCATIONS.find(l=>l.id===id)}
 function dm(){return DIFF[G.diff]}
 
-function showScreen(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));$(id).classList.add('active')}
+function showScreen(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));$(id).classList.add('active');if(id==='title-screen')updateTitleBtns()}
 function showModal(h){$('modal-content').innerHTML=h;$('modal').classList.add('active')}
 function hideModal(){$('modal').classList.remove('active')}
 function showQM(h){$('qty-modal-content').innerHTML=h;$('qty-modal').classList.add('active')}
@@ -249,7 +251,7 @@ function startGame(){
   const diff=document.querySelector('.diff-btn.selected').dataset.diff;
   const d=DIFF[diff];
   G={name,diff,day:1,maxDays:30,cash:Math.round(2000*d.cashM),debt:Math.round(5500*d.debtM),bank:0,health:100,maxHP:100,heat:0,rep:0,
-    location:'lewisville',inv:{},stash:{},invCap:100,weapon:null,stashOn:false,boughtUp:[],boughtWp:[],
+    location:'lewisville',inv:{},stash:{},costBasis:{},invCap:100,weapon:null,stashOn:false,boughtUp:[],boughtWp:[],
     freeT:false,bus2x:false,
     st:{deals:0,bigDeal:0,bought:0,sold:0,drugSold:{},drugRev:{},rcmp:0,rcmpW:0,rcmpR:0,mugs:0,visits:{},earned:0}};
   market=genMarket();$('event-log').innerHTML='';
@@ -275,12 +277,18 @@ function genMarket(){
 
 function showMarket(){
   const loc=getLoc(G.location);if(loc.isShop)return;
+  const showCmp=G.diff!=='hard';
   let h='';
   DRUGS.forEach(drug=>{
     const m=market[drug.id],owned=G.inv[drug.id]||0;
     const canBuy=m&&m.supply>0&&G.cash>=m.price&&invT()<G.invCap;
     h+='<div class="market-item"><div><div class="drug-name">'+drug.name+'</div><div style="font-size:12px;color:var(--text-dim)">Own: '+owned+'</div></div>';
-    h+='<div class="drug-price">'+(m?fmt(m.price):'<span style="color:var(--text-dim)">N/A</span>')+'</div>';
+    if(m){let pc='var(--green)',cmp='';
+      if(showCmp&&owned>0&&G.costBasis[drug.id]){const cb=G.costBasis[drug.id],df=m.price-cb;
+        if(df>0){pc='var(--green)';cmp=' <span style="font-size:11px;color:var(--green)">+'+fmt(df)+'</span>'}
+        else if(df<0){pc='var(--red)';cmp=' <span style="font-size:11px;color:var(--red)">-'+fmt(-df)+'</span>'}}
+      h+='<div class="drug-price"><span style="color:'+pc+'">'+fmt(m.price)+'</span>'+cmp+'</div>';
+    }else{h+='<div class="drug-price"><span style="color:var(--text-dim)">N/A</span></div>'}
     h+='<div class="drug-btns"><button class="drug-btn" onclick="buyDrug(\''+drug.id+'\')" '+(canBuy?'':'disabled')+'>BUY</button>';
     h+='<button class="drug-btn sell" onclick="sellDrug(\''+drug.id+'\')" '+(owned>0?'':'disabled')+'>SELL</button></div></div>';
   });
@@ -294,7 +302,7 @@ function buyDrug(id){
   showQM('<h2>BUY '+drug.name+'</h2><p>Price: '+fmt(m.price)+' each</p><div class="qty-controls"><button class="qty-btn" onclick="abq(-10)">--</button><button class="qty-btn" onclick="abq(-1)">-</button><span class="qty-display" id="bq-d">1</span><button class="qty-btn" onclick="abq(1)">+</button><button class="qty-btn" onclick="abq(10)">++</button></div><div class="qty-info" id="bq-t">Total: '+fmt(m.price)+'</div><button class="qty-max-btn" onclick="abq(9999)">MAX ('+maxB+')</button><div class="modal-buttons"><button class="btn w-full" onclick="confBuy()">BUY</button><button class="btn red small w-full" onclick="hideQM()">CANCEL</button></div>');
 }
 function abq(d){const m=market[window._bd];if(d===9999)window._bq=window._bm;else window._bq=cl(window._bq+d,1,window._bm);$('bq-d').textContent=window._bq;$('bq-t').textContent='Total: '+fmt(window._bq*m.price)}
-function confBuy(){const m=market[window._bd],q=window._bq,c=q*m.price;G.cash-=c;G.inv[window._bd]=(G.inv[window._bd]||0)+q;m.supply-=q;G.st.bought+=q;G.st.deals++;hideQM();addLog('Bought '+q+' '+DRUGS.find(d=>d.id===window._bd).name+' for '+fmt(c));updateUI();showMarket()}
+function confBuy(){const m=market[window._bd],q=window._bq,c=q*m.price,id=window._bd;const oldQ=G.inv[id]||0,oldCB=G.costBasis[id]||0;G.costBasis[id]=Math.round((oldCB*oldQ+c)/(oldQ+q));G.cash-=c;G.inv[id]=(G.inv[id]||0)+q;m.supply-=q;G.st.bought+=q;G.st.deals++;hideQM();addLog('Bought '+q+' '+DRUGS.find(d=>d.id===id).name+' for '+fmt(c));updateUI();showMarket()}
 
 function sellDrug(id){
   const drug=DRUGS.find(d=>d.id===id),owned=G.inv[id]||0;if(owned<=0)return;
@@ -303,7 +311,7 @@ function sellDrug(id){
   showQM('<h2>SELL '+drug.name+'</h2><p>Price: '+fmt(price)+' each</p><p style="font-size:14px;color:var(--text-dim)">You have: '+owned+'</p><div class="qty-controls"><button class="qty-btn" onclick="asq(-10)">--</button><button class="qty-btn" onclick="asq(-1)">-</button><span class="qty-display" id="sq-d">1</span><button class="qty-btn" onclick="asq(1)">+</button><button class="qty-btn" onclick="asq(10)">++</button></div><div class="qty-info" id="sq-t">Total: '+fmt(price)+'</div><button class="qty-max-btn" onclick="asq(9999)">SELL ALL ('+owned+')</button><div class="modal-buttons"><button class="btn w-full" onclick="confSell()">SELL</button><button class="btn red small w-full" onclick="hideQM()">CANCEL</button></div>');
 }
 function asq(d){if(d===9999)window._sq=window._sm;else window._sq=cl(window._sq+d,1,window._sm);$('sq-d').textContent=window._sq;$('sq-t').textContent='Total: '+fmt(window._sq*window._sp)}
-function confSell(){const q=window._sq,rev=q*window._sp,id=window._sd,drug=DRUGS.find(d=>d.id===id);G.cash+=rev;G.inv[id]-=q;if(G.inv[id]<=0)delete G.inv[id];
+function confSell(){const q=window._sq,rev=q*window._sp,id=window._sd,drug=DRUGS.find(d=>d.id===id);G.cash+=rev;G.inv[id]-=q;if(G.inv[id]<=0){delete G.inv[id];if(!G.stash[id])delete G.costBasis[id]}
   G.rep+=Math.round(rev/100);G.heat=Math.min(100,G.heat+q*.3*dm().heatM);
   G.st.sold+=q;G.st.deals++;G.st.earned+=rev;G.st.drugSold[id]=(G.st.drugSold[id]||0)+q;G.st.drugRev[id]=(G.st.drugRev[id]||0)+rev;if(rev>G.st.bigDeal)G.st.bigDeal=rev;
   hideQM();addLog('Sold '+q+' '+drug.name+' for '+fmt(rev)+' (+'+Math.round(rev/100)+' rep)');
@@ -312,8 +320,11 @@ function confSell(){const q=window._sq,rev=q*window._sp,id=window._sd,drug=DRUGS
 }
 
 function showTravel(){
-  travelDest=null;let h='<div style="padding:4px 0 8px;font-size:14px;color:var(--text-dim)">Choose destination:</div>';
-  LOCATIONS.forEach(loc=>{const cur=loc.id===G.location;h+='<div class="travel-dest '+(cur?'current':'')+'" onclick="selDest(\''+loc.id+'\')"><div><div class="name">'+loc.name+'</div><div class="vibe">'+loc.vibe+'</div></div><div style="font-size:13px;color:var(--text-dim)">'+(loc.isShop?'🛒':'💊')+'</div></div>'});
+  travelDest=null;const showScout=G.diff!=='hard';
+  let h='<div style="padding:4px 0 8px;font-size:14px;color:var(--text-dim)">Choose destination:</div>';
+  LOCATIONS.forEach(loc=>{const cur=loc.id===G.location;let st='';
+    if(showScout&&!loc.isShop&&!cur&&invT()>0)st=getScoutTag(loc);
+    h+='<div class="travel-dest '+(cur?'current':'')+'" onclick="selDest(\''+loc.id+'\')"><div><div class="name">'+loc.name+st+'</div><div class="vibe">'+loc.vibe+'</div></div><div style="font-size:13px;color:var(--text-dim)">'+(loc.isShop?'🛒':'💊')+'</div></div>'});
   $('travel-phase1').innerHTML=h;$('travel-phase1').style.display='block';$('travel-phase2').style.display='none';showScreen('travel-screen');
 }
 function selDest(id){
@@ -335,20 +346,21 @@ function doTravel(mid){
   }
   addLog('Traveled to '+getLoc(travelDest).name+' via '+m.name+(c>0?' ('+fmt(c)+')':''));
   advDay();market=genMarket();showScreen('game-screen');updateUI();
-  if(evt==='rcmp')setTimeout(rcmpEnc,300);else if(evt==='mug')setTimeout(mugEvent,300);else setTimeout(checkEvent,300);
+  if(evt==='rcmp')setTimeout(rcmpEnc,300);else if(evt==='mug')setTimeout(mugEvent,300);else setTimeout(()=>{if(!checkEvent())checkTip()},300);
 }
 
 function advDay(){
   G.day++;const d=dm();
   if(G.debt>0){const i=Math.round(G.debt*d.int);G.debt+=i;if(i>0)addLog('Loan shark interest: +'+fmt(i))}
   G.heat=Math.max(0,G.heat-rnd(1,3));
+  saveGame();
   if(G.day>G.maxDays)setTimeout(()=>gameOver(false),500);
 }
 
 function layLow(){
   const drop=rnd(15,30);G.heat=Math.max(0,G.heat-drop);
   addLog('Laid low for the day. Heat -'+Math.round(drop));market=genMarket();advDay();updateUI();
-  if(G.day<=G.maxDays)checkEvent();
+  if(G.day<=G.maxDays){if(!checkEvent())checkTip()}
 }
 
 function rcmpEnc(){
@@ -371,7 +383,7 @@ function rcmpRun(){
     if(G.health<=0){G.health=0;updateUI();setTimeout(()=>gameOver(true),500);return}}
   updateUI();
 }
-function dropDrugs(fr){let t=0;Object.keys(G.inv).forEach(id=>{const d=Math.ceil(G.inv[id]*fr);if(d>0){G.inv[id]-=d;if(G.inv[id]<=0)delete G.inv[id];t+=d}});return t}
+function dropDrugs(fr){let t=0;Object.keys(G.inv).forEach(id=>{const d=Math.ceil(G.inv[id]*fr);if(d>0){G.inv[id]-=d;if(G.inv[id]<=0){delete G.inv[id];if(!G.stash[id])delete G.costBasis[id]}t+=d}});return t}
 
 function mugEvent(){
   G.st.mugs++;const cl2=Math.round(G.cash*rnd(.05,.2)),dl=dropDrugs(rnd(.05,.15)),hp=rndI(5,15);
@@ -383,7 +395,7 @@ function mugEvent(){
 }
 
 function checkEvent(){
-  if(!ch(.35))return;
+  if(!ch(.35))return false;
   const ev=EVENTS[rndI(0,EVENTS.length-1)];
   switch(ev.fx){
     case'spike':if(market[ev.drug])market[ev.drug].price=Math.round(market[ev.drug].price*ev.m);break;
@@ -397,12 +409,12 @@ function checkEvent(){
     case'doc':
       if(G.health<G.maxHP&&G.cash>=200){
         showModal('<h2>🩹 STREET DOC</h2><p>'+ev.msg+'</p><div class="modal-buttons"><button class="btn w-full" onclick="docHeal()">PAY $200 (+40 HP)</button><button class="btn red small w-full" onclick="hideModal()">NAH</button></div>');
-        addLog(ev.msg);updateUI();return}
-      return;
+        addLog(ev.msg);updateUI();return true}
+      return false;
   }
   if(ev.fx!=='doc'){addLog('<span class="text-yellow">📰 '+ev.msg+'</span>');
     showModal('<h2>📰 NEWS</h2><p>'+ev.msg+'</p><div class="modal-buttons"><button class="btn w-full" onclick="hideModal()">OK</button></div>')}
-  updateUI();
+  updateUI();return true;
 }
 function docHeal(){G.cash-=200;G.health=Math.min(G.maxHP,G.health+40);hideModal();addLog('<span class="text-cyan">Street doc patched you up. +40 HP</span>');updateUI()}
 
@@ -459,6 +471,7 @@ function stDep(id){const n=G.inv[id]||0;if(n<=0)return;G.stash[id]=(G.stash[id]|
 function stWd(id){const n=G.stash[id]||0,sp=G.invCap-invT(),t=Math.min(n,sp);if(t<=0)return;G.inv[id]=(G.inv[id]||0)+t;G.stash[id]-=t;if(G.stash[id]<=0)delete G.stash[id];addLog('Took '+t+' '+DRUGS.find(d=>d.id===id).name+' from stash');updateUI();showStash()}
 
 function gameOver(died){
+  localStorage.removeItem('dw_save');
   const nw=G.cash+G.bank-G.debt,surv=Math.min(G.day,G.maxDays);
   let topL='None',topV=0;Object.entries(G.st.visits).forEach(([id,c])=>{if(c>topV){topV=c;topL=getLoc(id).name}});
   saveHS(G.name,nw,G.diff,surv);
@@ -479,6 +492,65 @@ function showScores(){const s=JSON.parse(localStorage.getItem('dw_scores')||'[]'
   else s.forEach((e,i)=>{h+='<div class="score-entry"><span class="score-rank">#'+(i+1)+'</span><span class="score-name">'+e.name+' <span style="font-size:12px;color:var(--text-dim)">('+e.diff+')</span></span><span class="score-cash">'+fmt(e.nw)+'</span></div>'});
   $('scores-list').innerHTML=h;showScreen('scores-screen');
 }
+function saveGame(manual){
+  try{localStorage.setItem('dw_save',JSON.stringify({G:G,market:market}));
+  if(manual)addLog('<span class="text-green">💾 Game saved.</span>')}catch(e){}
+}
+function loadSave(){try{const s=localStorage.getItem('dw_save');return s?JSON.parse(s):null}catch(e){return null}}
+function hasSave(){return !!loadSave()}
+function continueGame(){
+  const save=loadSave();if(!save)return;
+  G=save.G;market=save.market;if(!G.costBasis)G.costBasis={};
+  $('event-log').innerHTML='';
+  addLog('Welcome back, '+G.name+'. Day '+G.day+'/'+G.maxDays+'.');
+  updateUI();showScreen('game-screen');
+}
+function newGame(){
+  if(hasSave()){showModal('<h2>⚠️ WARNING</h2><p>This will overwrite your existing save.</p><div class="modal-buttons"><button class="btn w-full" onclick="hideModal();showScreen(\'setup-screen\')">START NEW</button><button class="btn red small w-full" onclick="hideModal()">CANCEL</button></div>')}
+  else showScreen('setup-screen');
+}
+function updateTitleBtns(){$('btn-continue').style.display=hasSave()?'':'none'}
+function getScoutTag(loc){
+  if(invT()===0)return '';
+  const fuzz=rnd(-.12,.12),pm=loc.priceMod+fuzz;
+  if(pm>=1.05)return ' <span style="font-size:10px;color:var(--green)">🔥 HOT</span>';
+  if(pm<=.82)return ' <span style="font-size:10px;color:var(--red)">📉 LOW</span>';
+  if(loc.supplyMod>=1.15&&loc.priceMod<=.95)return ' <span style="font-size:10px;color:var(--cyan)">💰 DEAL</span>';
+  return '';
+}
+function getDealerTip(){
+  const t=[
+    "Yo "+G.name+", word is cocaine prices about to explode in St George.",
+    "Someone told me Ackmin Court is sitting on cheap crack right now.",
+    "Stay away from Cornhill today, RCMP doing sweeps over there.",
+    "Big party in Lewisville this weekend — Molly and Xanax demand going up.",
+    "Heard the Dogpatch is flush with cheap heroin. Good time to stock up.",
+    G.name+", my boy in Joyce Avenue says Oxy is going for crazy prices.",
+    "Pinetree TP is quiet right now — safe spot to deal without heat.",
+    "Meth heads in Cornhill are desperate — prices through the roof over there.",
+    "Lakeside Estates got raided last night. Heat is high, stay away.",
+    "Yo "+G.name+", Marshes TP got a fresh shipment of Dillies. Prices are dirt cheap.",
+    "RCMP is crawling all over Champlain Mall area. Watch yourself downtown.",
+    "My connect in St George says Percs are flying off the shelves.",
+    "Word on the street — Weed drought hitting Lewisville hard. Prices way up.",
+    G.name+", stay strapped if you're heading to Ackmin Court tonight. It's wild.",
+    "Heard there's a rave near the Dogpatch this weekend. Molly gonna sell like crazy.",
+    "Joyce Avenue fiends burning through crack fast. Good money to be made there.",
+    "Pinetree people got paid today — they'll buy anything at a markup.",
+    "Lakeside is dry on Heroin. If you're holding, that's the spot.",
+    "Cornhill tweakers will pay anything for Meth right now. Just saying.",
+    G.name+", the Marshes are dead quiet today. Nobody buying, nobody selling."
+  ];
+  return t[rndI(0,t.length-1)];
+}
+function checkTip(){
+  let c;if(G.diff==='easy')c=.4;else if(G.diff==='normal')c=.25;else c=.08;
+  if(!ch(c))return;
+  const tip=getDealerTip();
+  addLog('<span class="text-cyan">💬 '+tip+'</span>');
+  showModal('<h2>💬 DEALER TIP</h2><p>'+tip+'</p><div class="modal-buttons"><button class="btn w-full" onclick="hideModal()">NOTED</button></div>');
+}
+updateTitleBtns();
 if('serviceWorker' in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>{});
 </script>
 </body>
