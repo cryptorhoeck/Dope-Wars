@@ -1,4 +1,4 @@
-const CACHE_NAME = 'dopewars-v5';
+const CACHE_NAME = 'dopewars-v6';
 const ASSETS = ['./', './index.html', './manifest.json', './icons/icon-192.png', './icons/icon-512.png',
   './lib/Tone.js', './fonts/fonts.css', './fonts/press-start-2p-latin.woff2', './fonts/vt323-latin.woff2'];
 

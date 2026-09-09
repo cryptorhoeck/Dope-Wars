@@ -101,6 +101,26 @@ html.low-hp .stat-val.health{animation:hpFlash 0.5s infinite}
 .gang-card .gang-btn{background:none;border:1px solid var(--orange);color:var(--orange);font-family:'VT323',monospace;font-size:16px;padding:4px 12px;cursor:pointer;margin-top:6px}
 .gang-card .gang-btn:active{background:var(--orange);color:var(--bg)}
 .gang-card .gang-btn:disabled{opacity:0.3;pointer-events:none}
+.mode-desc{font-size:14px;color:var(--text-dim);text-align:center;max-width:280px;line-height:1.3;min-height:36px}
+.diff-btn.mode-career.selected{border-color:var(--cyan);color:var(--cyan);background:rgba(0,204,255,0.1)}
+.diff-btn.mode-mafia.selected{border-color:var(--orange);color:var(--orange);background:rgba(255,136,0,0.1)}
+.score-tabs{display:flex;gap:6px;padding:8px 16px 0}
+.score-tab{flex:1;background:none;border:1px solid var(--border);color:var(--text-dim);font-family:'Press Start 2P',monospace;font-size:7px;padding:8px 4px;cursor:pointer}
+.score-tab.sel{border-color:var(--yellow);color:var(--yellow)}
+.terr-card{padding:8px 10px;margin-bottom:6px;background:var(--panel);border:1px solid var(--border)}
+.terr-card.mine{border-color:var(--dim-green)}.terr-card.enemy{border-color:#5a1a1a}
+.terr-head{display:flex;justify-content:space-between;align-items:center}
+.terr-name{font-family:'Press Start 2P',monospace;font-size:8px;color:var(--text)}
+.terr-card.mine .terr-name{color:var(--green)}
+.terr-owner{font-size:12px;color:var(--text-dim)}
+.terr-row{display:flex;justify-content:space-between;font-size:14px;color:var(--text-dim);margin-top:4px}
+.terr-btns{display:flex;gap:4px;margin-top:6px;flex-wrap:wrap}
+.terr-btns button{background:none;border:1px solid var(--border);color:var(--text);font-family:'VT323',monospace;font-size:15px;padding:3px 8px;cursor:pointer}
+.terr-btns button:disabled{opacity:.3;pointer-events:none}
+.terr-btns button.take{border-color:var(--orange);color:var(--orange)}
+.terr-btns button.post{border-color:var(--green);color:var(--green)}
+.terr-btns button.recall{border-color:var(--cyan);color:var(--cyan)}
+.badge{font-family:'Press Start 2P',monospace;font-size:6px;padding:2px 4px;border:1px solid currentColor}
 </style>
 <script src="./lib/Tone.js"></script>
 </head>
@@ -120,6 +140,14 @@ html.low-hp .stat-val.health{animation:hpFlash 0.5s infinite}
   <div class="setup-label">ENTER YOUR NAME</div>
   <input class="setup-input" id="name-input" type="text" maxlength="12" placeholder="DEALER NAME" autocomplete="off">
   <div style="height:12px"></div>
+  <div class="setup-label">MODE</div>
+  <div class="diff-btns">
+    <button class="diff-btn selected" data-mode="classic" onclick="selectMode(this)">CLASSIC</button>
+    <button class="diff-btn mode-career" data-mode="career" onclick="selectMode(this)">CAREER</button>
+    <button class="diff-btn mode-mafia" data-mode="mafia" onclick="selectMode(this)">MAFIA</button>
+  </div>
+  <div class="mode-desc" id="mode-desc"></div>
+  <div style="height:4px"></div>
   <div class="setup-label">DIFFICULTY</div>
   <div class="diff-btns">
     <button class="diff-btn" data-diff="easy" onclick="selectDiff(this)">EASY</button>
@@ -141,10 +169,10 @@ html.low-hp .stat-val.health{animation:hpFlash 0.5s infinite}
     <div class="stat"><span class="stat-label">DAY</span><span class="stat-val day" id="s-day">1/30</span></div>
   </div>
   <div class="stats-bar2">
-    <div class="stat2"><span class="stat-label">BANK</span><span id="s-bank">$0</span></div>
-    <div class="stat2"><span class="stat-label">DEBT</span><span class="text-red" id="s-debt">$5,500</span></div>
-    <div class="stat2"><span class="stat-label">REP</span><span class="text-orange" id="s-rep">0</span></div>
-    <div class="stat2"><span class="stat-label">PACK</span><span id="s-inv">0/100</span></div>
+    <div class="stat2"><span class="stat-label" id="l-bank">BANK</span><span id="s-bank">$0</span></div>
+    <div class="stat2"><span class="stat-label" id="l-debt">DEBT</span><span class="text-red" id="s-debt">$5,500</span></div>
+    <div class="stat2"><span class="stat-label" id="l-rep">REP</span><span class="text-orange" id="s-rep">0</span></div>
+    <div class="stat2"><span class="stat-label" id="l-inv">PACK</span><span id="s-inv">0/100</span></div>
   </div>
   <div class="loc-header">
     <span class="loc-name" id="s-loc">Lewisville</span>
@@ -212,9 +240,18 @@ html.low-hp .stat-val.health{animation:hpFlash 0.5s infinite}
   <div class="screen-header"><button class="back-btn" onclick="showScreen('game-screen')">←</button><span class="screen-title">GANGS</span></div>
   <div style="flex:1;overflow-y:auto;padding:8px" id="gang-list"></div>
 </div>
+<div id="empire-screen" class="screen">
+  <div class="screen-header"><button class="back-btn" onclick="showScreen('game-screen')">←</button><span class="screen-title">EMPIRE</span></div>
+  <div style="flex:1;overflow-y:auto;padding:8px" id="empire-list"></div>
+</div>
+<div id="crew-screen" class="screen">
+  <div class="screen-header"><button class="back-btn" onclick="showScreen('game-screen')">←</button><span class="screen-title">CREW &amp; BUSINESS</span></div>
+  <div style="flex:1;overflow-y:auto;padding:8px" id="crew-list"></div>
+</div>
 <div id="gameover-screen" class="screen"></div>
 <div id="scores-screen" class="screen">
   <div class="screen-header"><button class="back-btn" onclick="showScreen('title-screen')">←</button><span class="screen-title">HIGH SCORES</span></div>
+  <div class="score-tabs"><button class="score-tab sel" onclick="showScores('classic')">CLASSIC</button><button class="score-tab" onclick="showScores('career')">CAREER</button><button class="score-tab" onclick="showScores('mafia')">MAFIA</button></div>
   <div style="padding:16px" id="scores-list"></div>
 </div>
 <div class="modal-overlay" id="modal"><div class="modal" id="modal-content"></div></div>
@@ -261,7 +298,9 @@ const EVENTS=[
 ];
 const DIFF={easy:{cashM:1.5,debtM:.7,rcmpM:.6,mugM:.5,heatM:.7,int:.03,priceM:.85},normal:{cashM:1,debtM:1,rcmpM:1,mugM:1,heatM:1,int:.05,priceM:1},hard:{cashM:.7,debtM:1.3,rcmpM:1.5,mugM:1.5,heatM:1.4,int:.08,priceM:1.15}};
 
-let G={},market={},bankQV=0,loanQV=0,travelDest=null,selTier=1;
+let G={},market={},bankQV=0,loanQV=0,travelDest=null,selTier=1,selMode='classic';
+const MODE_DESC={classic:'The original. Pick a tier, beat the clock, bank the most cash.',career:'One long life. No clock. Climb from runner to kingpin, buy assets, retire rich or die trying.',mafia:'Run the city. Hire crews, take hoods, wash money, and fight the MCs. 60 days.'};
+function dayLeft(){return !G.maxDays||G.day<=G.maxDays}
 function $(id){return document.getElementById(id)}
 function fmt(n){return '$'+Math.round(n).toLocaleString()}
 function rnd(a,b){return Math.random()*(b-a)+a}
@@ -280,21 +319,38 @@ function showQM(h){$('qty-modal-content').innerHTML=h;$('qty-modal').classList.a
 function hideQM(){$('qty-modal').classList.remove('active')}
 
 function updateUI(){
-  $('s-cash').textContent=fmt(G.cash);$('s-health').textContent=G.health;$('s-heat').textContent=Math.round(G.heat);$('s-day').textContent=G.day+'/'+G.maxDays;
-  $('s-bank').textContent=fmt(G.bank);$('s-debt').textContent=fmt(G.debt);$('s-rep').textContent=Math.round(G.rep);$('s-inv').textContent=invT()+'/'+G.invCap;
-  const loc=getLoc(G.location);$('s-loc').textContent=loc.name;$('s-vibe').textContent=loc.vibe;
-  if(G.weapon){$('weapon-bar').style.display='block';const w=WEAPONS.find(w=>w.id===G.weapon);$('weapon-bar').textContent='🔫 '+w.name+' ('+w.desc+')';}else{$('weapon-bar').style.display='none'}
+  $('s-cash').textContent=fmt(G.cash);$('s-health').textContent=G.health;$('s-heat').textContent=Math.round(G.heat);$('s-day').textContent=G.maxDays?G.day+'/'+G.maxDays:String(G.day);
+  if(G.mode==='mafia'){
+    $('l-bank').textContent='DIRTY';$('l-rep').textContent='RESPECT';$('l-inv').textContent='HOODS';$('l-debt').textContent='FAMILY';
+    $('s-bank').textContent=fmt(G.dirty);$('s-debt').textContent=fmt(G.debt);$('s-rep').textContent=Math.round(G.rep);$('s-inv').textContent=myHoods().length+'/11';
+    $('s-loc').textContent='HQ: '+getLoc(G.location).name;$('s-vibe').textContent='Bank '+fmt(G.bank)+(G.bankFrozen>0?' (frozen)':'')+' · Income '+fmt(G.lastIncome)+'/day';
+    $('weapon-bar').style.display='none';
+  }else{
+    $('l-bank').textContent='BANK';$('l-rep').textContent='REP';$('l-inv').textContent='PACK';$('l-debt').textContent='DEBT';
+    $('s-bank').textContent=fmt(G.bank);$('s-debt').textContent=fmt(G.debt);$('s-rep').textContent=Math.round(G.rep);$('s-inv').textContent=invT()+'/'+G.invCap;
+    const loc=getLoc(G.location);$('s-loc').textContent=loc.name;$('s-vibe').textContent=G.mode==='career'?'Season '+G.season+(G.seasonFxDays>0?' · '+SEASON_FX[G.seasonFx].tag:''):loc.vibe;
+    if(G.weapon){$('weapon-bar').style.display='block';const w=WEAPONS.find(w=>w.id===G.weapon);$('weapon-bar').textContent='🔫 '+w.name+' ('+w.desc+')';}else{$('weapon-bar').style.display='none'}
+  }
   document.documentElement.classList.toggle('low-hp',G.health<=25);
   if(G.health<=25&&G.health>0)startHeartbeat();else stopHeartbeat();
   const gb=$('btn-gangs');if(gb)gb.style.display=G.tier>=3?'':'none';
 }
+function renderActions(){
+  const g=$('action-grid');
+  if(G.mode==='mafia'){
+    g.innerHTML='<button class="action-btn" onclick="showEmpire()"><span class="icon">🏙️</span>Empire</button><button class="action-btn" onclick="showCrew()"><span class="icon">👥</span>Crew &amp; Biz</button><button class="action-btn" onclick="showSitdowns()"><span class="icon">🏍️</span>Sit-Downs</button><button class="action-btn" onclick="showLaunder()"><span class="icon">💵</span>Launder</button><button class="action-btn" onclick="showBank()"><span class="icon">🏦</span>Bank</button><button class="action-btn" onclick="showLoan()"><span class="icon">👔</span>The Family</button><button class="action-btn" onclick="showHeal()"><span class="icon">🩹</span>Heal</button><button class="action-btn" onclick="exitMenu()"><span class="icon">🚪</span>Menu</button><button class="action-btn" onclick="saveGame(true)"><span class="icon">💾</span>Save</button><button class="action-btn" style="border-color:var(--orange);color:var(--orange)" onclick="endDay()"><span class="icon">⏭️</span>End Day</button>';
+  }else{
+    g.innerHTML='<button class="action-btn" onclick="showTravel()"><span class="icon">🚶</span>Travel</button><button class="action-btn" id="btn-market" onclick="showMarket()"><span class="icon">💊</span>Buy / Sell</button><button class="action-btn" onclick="showBank()"><span class="icon">🏦</span>Bank</button><button class="action-btn" onclick="showLoan()"><span class="icon">🦈</span>Loan Shark</button><button class="action-btn" onclick="showHeal()"><span class="icon">🩹</span>Heal</button><button class="action-btn" onclick="exitMenu()"><span class="icon">🚪</span>Menu</button><button class="action-btn" onclick="showStash()"><span class="icon">📦</span>Stash</button><button class="action-btn" onclick="layLow()"><span class="icon">😎</span>Lay Low</button><button class="action-btn" onclick="saveGame(true)"><span class="icon">💾</span>Save</button><button class="action-btn" id="btn-gangs" onclick="showGangs()" style="display:none"><span class="icon">🏍️</span>Gangs</button>';
+  }
+}
 function addLog(msg){const log=$('event-log'),p=document.createElement('div');p.style.cssText='margin-bottom:4px;border-bottom:1px solid #1a1a1a;padding-bottom:4px';p.innerHTML='<span style="color:var(--dim-green)">[Day '+G.day+']</span> '+msg;log.prepend(p);while(log.children.length>50)log.removeChild(log.lastChild)}
 
-function selectDiff(el){document.querySelectorAll('.diff-btn').forEach(b=>b.classList.remove('selected'));el.classList.add('selected');renderTierSelector()}
+function selectDiff(el){document.querySelectorAll('.diff-btn[data-diff]').forEach(b=>b.classList.remove('selected'));el.classList.add('selected');renderTierSelector()}
+function selectMode(el){document.querySelectorAll('.diff-btn[data-mode]').forEach(b=>b.classList.remove('selected'));el.classList.add('selected');selMode=el.dataset.mode;$('mode-desc').textContent=MODE_DESC[selMode];renderTierSelector()}
 function getUnlockedTier(){return parseInt(localStorage.getItem('dw_tier')||'1')}
 function setUnlockedTier(t){localStorage.setItem('dw_tier',String(t))}
 function renderTierSelector(){
-  const ut=getUnlockedTier();if(ut<=1){$('tier-label').style.display='none';$('tier-btns').style.display='none';selTier=1;return}
+  const ut=getUnlockedTier();if(ut<=1||selMode!=='classic'){$('tier-label').style.display='none';$('tier-btns').style.display='none';selTier=1;return}
   $('tier-label').style.display='';$('tier-btns').style.display='';
   const tiers=[{t:1,name:'STREET RUNNER',days:30},{t:2,name:'SHOT CALLER',days:45},{t:3,name:'KINGPIN',days:60}];
   let h='';tiers.forEach(ti=>{
@@ -305,18 +361,26 @@ function renderTierSelector(){
 function pickTier(t){if(t>getUnlockedTier())return;selTier=t;renderTierSelector()}
 
 function startGame(){
+  if(loadSave(selMode)){showModal('<h2>⚠️ WARNING</h2><p>You already have a '+selMode.toUpperCase()+' game saved. Starting a new one will overwrite it.</p><div class="modal-buttons"><button class="btn w-full" onclick="hideModal();reallyStartGame()">START NEW</button><button class="btn red small w-full" onclick="hideModal()">CANCEL</button></div>');return}
+  reallyStartGame();
+}
+function reallyStartGame(){
   const name=$('name-input').value.trim().toUpperCase()||'DEALER';
-  const diff=document.querySelector('.diff-btn.selected').dataset.diff;
-  const d=DIFF[diff];const tier=selTier;
-  const mdays=tier===3?60:tier===2?45:30;
-  G={name,diff,day:1,maxDays:mdays,cash:Math.round(2000*d.cashM),debt:Math.round(5500*d.debtM),bank:0,health:100,maxHP:100,heat:0,rep:0,
+  const diff=document.querySelector('.diff-btn[data-diff].selected').dataset.diff;
+  const d=DIFF[diff];const mode=selMode;
+  if(mode==='mafia'){mafiaInit(name,diff);return}
+  const tier=mode==='career'?1:selTier;
+  const mdays=mode==='career'?0:tier===3?60:tier===2?45:30;
+  G={mode,name,diff,day:1,maxDays:mdays,cash:Math.round(2000*d.cashM),debt:Math.round(5500*d.debtM),bank:0,health:100,maxHP:100,heat:0,rep:0,
     location:'lewisville',inv:{},stash:{},costBasis:{},invCap:100,weapon:null,stashOn:false,boughtUp:[],boughtWp:[],
     freeT:false,bus2x:false,tier:tier,unlockedTier:getUnlockedTier(),maxTier:3,
     gang:null,gangRep:0,enemies:[],gangMission:null,gangMissionDays:0,
+    season:1,seasonFx:null,seasonFxDays:0,assets:[],nextCollector:30,seasonEarned:0,seasonDeals:0,
     st:{deals:0,bigDeal:0,bought:0,sold:0,drugSold:{},drugRev:{},rcmp:0,rcmpW:0,rcmpR:0,mugs:0,visits:{},earned:0,rivals:0,hookups:0}};
-  market=genMarket();$('event-log').innerHTML='';
+  market=genMarket();$('event-log').innerHTML='';renderActions();
   const tn=tier===3?'KINGPIN':tier===2?'SHOT CALLER':'STREET RUNNER';
-  addLog('Welcome to Moncton, '+G.name+'. '+mdays+' days to make your fortune. ['+tn+']');
+  if(mode==='career'){addLog('Welcome to Moncton, '+G.name+'. No clock this time. Build a life, or lose one.');addLog('Rep unlocks the city as you go. Retire once you\'re debt-free after day 30.')}
+  else addLog('Welcome to Moncton, '+G.name+'. '+mdays+' days to make your fortune. ['+tn+']');
   addLog('You owe the loan shark '+fmt(G.debt)+'. Interest compounds daily.');
   updateUI();showScreen('game-screen');playGameStart();setTimeout(playBeat,600);
 }
@@ -326,14 +390,16 @@ function tierLocs(){return LOCATIONS.filter(l=>!l.tier||l.tier<=G.tier)}
 function genMarket(){
   const loc=getLoc(G.location);if(loc.isShop)return {};
   const mk={},d=dm();let pm0=gangPriceMod();
+  const sfx=(G.mode==='career'&&G.seasonFxDays>0)?SEASON_FX[G.seasonFx]:null;
   tierDrugs().forEach(drug=>{
     if(ch(.15+(1-loc.supplyMod)*.3))return;
     let pm=loc.priceMod*d.priceM*pm0;
     if(loc.id==='cornhill'&&drug.id==='meth')pm*=.5;
     if(loc.id==='ackmin'&&drug.id==='crack')pm*=.6;
+    if(sfx){pm*=sfx.price||1;if(sfx.party&&['molly','xanax','ketamine'].includes(drug.id))pm*=sfx.party}
     let price=rnd(drug.min,drug.max)*pm;
     if(ch(.1))price*=rnd(2,5);if(ch(.1))price*=rnd(.2,.5);
-    mk[drug.id]={price:Math.max(1,Math.round(price)),supply:Math.round(rnd(5,30)*loc.supplyMod)};
+    mk[drug.id]={price:Math.max(1,Math.round(price)),supply:Math.max(1,Math.round(rnd(5,30)*loc.supplyMod*(sfx&&sfx.supply?sfx.supply:1)))};
   });
   return mk;
 }
@@ -388,7 +454,7 @@ function sellDrug(id){
 function asq(d){if(d===9999)window._sq=window._sm;else window._sq=cl(window._sq+d,1,window._sm);$('sq-d').textContent=window._sq;$('sq-t').textContent='Total: '+fmt(window._sq*window._sp)}
 function confSell(){const q=window._sq,rev=q*window._sp,id=window._sd,drug=DRUGS.find(d=>d.id===id);G.cash+=rev;G.inv[id]-=q;if(G.inv[id]<=0){delete G.inv[id];if(!G.stash[id])delete G.costBasis[id]}
   G.rep+=Math.round(rev/100);G.heat=Math.min(100,G.heat+q*.3*dm().heatM);
-  G.st.sold+=q;G.st.deals++;G.st.earned+=rev;G.st.drugSold[id]=(G.st.drugSold[id]||0)+q;G.st.drugRev[id]=(G.st.drugRev[id]||0)+rev;if(rev>G.st.bigDeal)G.st.bigDeal=rev;
+  G.st.sold+=q;G.st.deals++;G.st.earned+=rev;if(G.mode==='career'){G.seasonEarned+=rev;G.seasonDeals++}G.st.drugSold[id]=(G.st.drugSold[id]||0)+q;G.st.drugRev[id]=(G.st.drugRev[id]||0)+rev;if(rev>G.st.bigDeal)G.st.bigDeal=rev;
   hideQM();playSell();addLog('Sold '+q+' '+drug.name+' for '+fmt(rev)+' (+'+Math.round(rev/100)+' rep)');
   if(!G.stashOn&&G.rep>=150){G.stashOn=true;playUnlock();addLog('<span class="text-orange">★ STASH HOUSE UNLOCKED!</span>')}
   checkTierUnlock();
@@ -396,12 +462,28 @@ function confSell(){const q=window._sq,rev=q*window._sp,id=window._sd,drug=DRUGS
 }
 function checkTierUnlock(){
   const ut=getUnlockedTier();
+  if(G.mode==='career'){
+    // Career: the run itself grows. New tier content appears immediately.
+    if(G.tier<2&&G.rep>=300){G.tier=2;if(ut<2)setUnlockedTier(2);G.unlockedTier=Math.max(G.unlockedTier,2);playUnlock();
+      addLog('<span class="text-orange">★ SHOT CALLER — Moncton just got bigger.</span>');
+      setTimeout(()=>showModal('<h2>🔓 SHOT CALLER</h2><p>Word\'s out. Fox Creek is open to you now, Fentanyl is on the menu, and the Mall stocks heavier gear.</p><p style="font-size:14px;color:var(--text-dim)">Heat decays slower from here. You\'re somebody now.</p><div class="modal-buttons"><button class="btn w-full" onclick="hideModal()">HELL YEAH</button></div>'),400)}
+    else if(G.tier<3&&G.rep>=600){G.tier=3;if(ut<3)setUnlockedTier(3);G.unlockedTier=3;playUnlock();
+      addLog('<span class="text-orange">★ KINGPIN — the clubs want to talk.</span>');
+      setTimeout(()=>showModal('<h2>👑 KINGPIN</h2><p>Kingswood Park, Ketamine, AK-47s. The motorcycle clubs are watching you, and so are the rivals.</p><p style="font-size:14px;color:var(--text-dim)">Heat barely decays on its own now. Lay low, or buy a Safehouse.</p><div class="modal-buttons"><button class="btn w-full" onclick="hideModal()">LET\'S GO</button></div>'),400)}
+    updateUI();return;
+  }
   if(ut<2&&G.rep>=300){setUnlockedTier(2);G.unlockedTier=2;playUnlock();
     addLog('<span class="text-orange">★ TIER 2 UNLOCKED — SHOT CALLER!</span>');
     setTimeout(()=>showModal('<h2>🔓 TIER 2 UNLOCKED</h2><p style="color:var(--orange);font-family:\'Press Start 2P\',monospace;font-size:10px">SHOT CALLER</p><p>New location: Fox Creek<br>New drug: Fentanyl<br>New weapons & gear<br>Start a new game at Tier 2 for 45 days!</p><div class="modal-buttons"><button class="btn w-full" onclick="hideModal()">HELL YEAH</button></div>'),400)}
   else if(ut<3&&G.rep>=600){setUnlockedTier(3);G.unlockedTier=3;playUnlock();
     addLog('<span class="text-orange">★ TIER 3 UNLOCKED — KINGPIN!</span>');
     setTimeout(()=>showModal('<h2>👑 TIER 3 UNLOCKED</h2><p style="color:var(--orange);font-family:\'Press Start 2P\',monospace;font-size:10px">KINGPIN</p><p>New location: Kingswood Park<br>New drug: Ketamine<br>Motorcycle gangs, rival dealers, and more.<br>Start a new game at Tier 3 for 60 days!</p><div class="modal-buttons"><button class="btn w-full" onclick="hideModal()">LET\'S GO</button></div>'),400)}
+}
+// What happens after a day passes (travel or lay low). Career gets first dibs.
+function postDayChain(){
+  if(!dayLeft())return;
+  if(G.mode==='career'){if(checkSeason())return;if(checkCollector())return}
+  if(!checkEvent()){if(!checkHookup())checkTip()}
 }
 
 function showTravel(){
@@ -429,6 +511,7 @@ function doTravel(mid){
   let rcmpMod=1,mugMod=1;
   if(G.tier>=3&&G.gang){const g=GANGS.find(g=>g.id===G.gang);const allies=GANGS.filter(x=>x.side===g.side).map(x=>x.territory);const eterr=GANGS.filter(x=>G.enemies.includes(x.id)).map(x=>x.territory);
     if(allies.includes(travelDest)){rcmpMod=.6;mugMod=.5}else if(eterr.includes(travelDest)){rcmpMod=1.4;mugMod=1.5}}
+  if(G.mode==='career'){if(hasAsset('cop'))rcmpMod*=.5;if(G.seasonFxDays>0&&SEASON_FX[G.seasonFx].rcmp)rcmpMod*=SEASON_FX[G.seasonFx].rcmp}
   if(m.risk>0){
     if(ch((G.heat/100)*.4*m.risk*d.rcmpM*rcmpMod))evt='rcmp';
     else if(ch(getLoc(travelDest).danger*.2*m.risk*d.mugM*mugMod))evt='mug';
@@ -441,21 +524,30 @@ function doTravel(mid){
     if(eterr.includes(travelDest)&&ch(.2))evt='ambush'}
   addLog('Traveled to '+getLoc(travelDest).name+' via '+m.name+(c>0?' ('+fmt(c)+')':''));
   advDay();market=genMarket();showScreen('game-screen');updateUI();
-  if(evt==='rcmp')setTimeout(rcmpEnc,300);else if(evt==='mug')setTimeout(mugEvent,300);else if(evt==='rival')setTimeout(rivalEnc,300);else if(evt==='ambush')setTimeout(gangAmbush,300);else setTimeout(()=>{if(!checkEvent()){if(!checkHookup())checkTip()}},300);
+  if(evt==='rcmp')setTimeout(rcmpEnc,300);else if(evt==='mug')setTimeout(mugEvent,300);else if(evt==='rival')setTimeout(rivalEnc,300);else if(evt==='ambush')setTimeout(gangAmbush,300);else setTimeout(postDayChain,300);
 }
 
 function advDay(){
   G.day++;playDayAdvance();const d=dm();
-  if(G.debt>0){const i=Math.round(G.debt*d.int);G.debt+=i;if(i>0)addLog('Loan shark interest: +'+fmt(i))}
-  G.heat=Math.max(0,G.heat-rnd(1,3));
+  if(G.debt>0){const rate=G.mode==='mafia'?d.int*.3:d.int;const i=Math.round(G.debt*rate);G.debt+=i;if(i>0)addLog((G.mode==='mafia'?'The Family\'s vig: +':'Loan shark interest: +')+fmt(i))}
+  let decay=rnd(1,3);
+  if(G.mode==='career'){
+    if(G.rep>=600)decay*=.4;else if(G.rep>=300)decay*=.66;
+    if(G.seasonFxDays>0){const s=SEASON_FX[G.seasonFx];if(s.decay)decay*=s.decay;G.seasonFxDays--;if(G.seasonFxDays===0)addLog('<span class="text-yellow">The '+s.name.toLowerCase()+' is over. Back to normal.</span>')}
+    careerUpkeep();
+  }
+  G.heat=Math.max(0,G.heat-decay);
   saveGame();
-  if(G.day>G.maxDays)setTimeout(()=>gameOver(false),500);
+  if(G.maxDays&&G.day>G.maxDays)setTimeout(()=>gameOver(false),500);
 }
 
 function layLow(){
-  const drop=rnd(15,30);G.heat=Math.max(0,G.heat-drop);
-  addLog('Laid low for the day. Heat -'+Math.round(drop));market=genMarket();advDay();updateUI();
-  if(G.day<=G.maxDays){if(!checkEvent()){if(!checkHookup())checkTip()}}
+  let drop=rnd(15,30);const safe=G.mode==='career'&&hasAsset('safehouse');if(safe)drop*=2;
+  G.heat=Math.max(0,G.heat-drop);
+  if(safe&&G.health<G.maxHP){G.health=Math.min(G.maxHP,G.health+20);addLog('Laid low at the safehouse. Heat -'+Math.round(drop)+', +20 HP')}
+  else addLog('Laid low for the day. Heat -'+Math.round(drop));
+  market=genMarket();advDay();updateUI();
+  postDayChain();
 }
 
 function rcmpEnc(){
@@ -465,16 +557,16 @@ function rcmpEnc(){
 function rcmpFight(){
   hideModal();const wb=G.weapon?WEAPONS.find(w=>w.id===G.weapon).bonus:0;
   if(ch(.3+wb)){G.st.rcmpW++;G.heat=Math.min(100,G.heat+15);G.rep+=10;addLog('<span class="text-green">Fought off the RCMP! +10 rep</span>')}
-  else{const hp=rndI(15,35),cl2=Math.round(G.cash*rnd(.1,.3)),dl=dropDrugs(rnd(.1,.3));G.health-=hp;G.cash-=cl2;G.heat=Math.min(100,G.heat+20);
-    addLog('<span class="text-red">RCMP got you! -'+hp+' HP, -'+fmt(cl2)+(dl>0?', '+dl+' confiscated':'')+'</span>');
+  else{const lw=lawyerMod();const hp=rndI(15,35),cl2=Math.round(G.cash*rnd(.1,.3)*lw),dl=dropDrugs(rnd(.1,.3)*lw);G.health-=hp;G.cash-=cl2;G.heat=Math.min(100,G.heat+20);
+    addLog('<span class="text-red">RCMP got you! -'+hp+' HP, -'+fmt(cl2)+(dl>0?', '+dl+' confiscated':'')+(lw<1?' (lawyer softened it)':'')+'</span>');
     if(G.health<=0){G.health=0;updateUI();setTimeout(()=>gameOver(true),500);return}}
   updateUI();
 }
 function rcmpRun(){
   hideModal();G.st.rcmpR++;
   if(ch(.5)){const dl=dropDrugs(rnd(.05,.15));addLog('<span class="text-yellow">Escaped!'+(dl>0?' Dropped '+dl+' units.':'')+'</span>')}
-  else{const hp=rndI(10,20),cl2=Math.round(G.cash*rnd(.15,.35)),dl=dropDrugs(rnd(.2,.4));G.health-=hp;G.cash-=cl2;G.heat=Math.min(100,G.heat+10);
-    addLog('<span class="text-red">Caught! -'+hp+' HP, -'+fmt(cl2)+(dl>0?', '+dl+' confiscated':'')+'</span>');
+  else{const lw=lawyerMod();const hp=rndI(10,20),cl2=Math.round(G.cash*rnd(.15,.35)*lw),dl=dropDrugs(rnd(.2,.4)*lw);G.health-=hp;G.cash-=cl2;G.heat=Math.min(100,G.heat+10);
+    addLog('<span class="text-red">Caught! -'+hp+' HP, -'+fmt(cl2)+(dl>0?', '+dl+' confiscated':'')+(lw<1?' (lawyer softened it)':'')+'</span>');
     if(G.health<=0){G.health=0;updateUI();setTimeout(()=>gameOver(true),500);return}}
   updateUI();
 }
@@ -519,9 +611,9 @@ function docHeal(){G.cash-=200;G.health=Math.min(G.maxHP,G.health+40);hideModal(
 function showBank(){bankQV=0;$('bank-balance').textContent='Balance: '+fmt(G.bank);$('bank-cash').textContent='Cash: '+fmt(G.cash);$('bank-qty').textContent='$0';$('bank-qty').style.color='var(--green)';showScreen('bank-screen')}
 function bankQty(d){bankQV+=d;if(bankQV>0)bankQV=Math.min(bankQV,G.cash);else bankQV=Math.max(bankQV,-G.bank);$('bank-qty').textContent=(bankQV>=0?'+':'')+fmt(bankQV);$('bank-qty').style.color=bankQV>=0?'var(--green)':'var(--red)'}
 function bankMax(){bankQV=G.cash;$('bank-qty').textContent='+'+fmt(bankQV);$('bank-qty').style.color='var(--green)'}
-function bankAction(){if(bankQV===0)return;playBank();G.cash-=bankQV;G.bank+=bankQV;addLog(bankQV>0?'Deposited '+fmt(bankQV)+' in bank.':'Withdrew '+fmt(-bankQV)+' from bank.');bankQV=0;updateUI();showBank()}
+function bankAction(){if(bankQV===0)return;if(G.bankFrozen>0){addLog('<span class="text-red">Bank is frozen ('+G.bankFrozen+'d).</span>');return}playBank();G.cash-=bankQV;G.bank+=bankQV;addLog(bankQV>0?'Deposited '+fmt(bankQV)+' in bank.':'Withdrew '+fmt(-bankQV)+' from bank.');bankQV=0;updateUI();showBank()}
 
-function showLoan(){loanQV=0;$('loan-debt').textContent='Debt: '+fmt(G.debt);$('loan-cash').textContent='Cash: '+fmt(G.cash);$('loan-qty').textContent='$0';showScreen('loan-screen')}
+function showLoan(){loanQV=0;document.querySelector('#loan-screen .screen-title').textContent=G.mode==='mafia'?'THE FAMILY':'LOAN SHARK';document.querySelector('#loan-screen .info').textContent=G.mode==='mafia'?'Clean cash only. The vig is '+(Math.round(dm().int*30)/10)+'% a day.':'Pay off your debt before it eats you alive.';$('loan-debt').textContent='Debt: '+fmt(G.debt);$('loan-cash').textContent='Cash: '+fmt(G.cash);$('loan-qty').textContent='$0';showScreen('loan-screen')}
 function loanQty(d){loanQV=cl(loanQV+d,0,Math.min(G.cash,G.debt));$('loan-qty').textContent=fmt(loanQV)}
 function loanMax(){loanQV=Math.min(G.cash,G.debt);$('loan-qty').textContent=fmt(loanQV)}
 function loanAction(){if(loanQV<=0)return;playLoan();G.cash-=loanQV;G.debt-=loanQV;addLog('Paid '+fmt(loanQV)+' to loan shark. Remaining: '+fmt(G.debt));if(G.debt<=0){G.debt=0;addLog('<span class="text-green">★ DEBT PAID OFF!</span>')}loanQV=0;updateUI();showLoan()}
@@ -550,6 +642,14 @@ function showShop(){
     if(owned)h+='<span style="color:var(--green);font-size:14px">OWNED</span>';
     else h+='<button class="shop-buy-btn" onclick="buyUp(\''+u.id+'\')" '+(G.cash>=u.cost?'':'disabled')+'>'+fmt(u.cost)+'</button>';
     h+='</div>'});
+  if(G.mode==='career'){
+    h+='<div style="padding:12px 0 4px;font-size:14px;color:var(--cyan)">Assets (permanent):</div><div style="font-size:12px;color:var(--text-dim);padding-bottom:8px">Resale value (50%) counts toward your final score.</div>';
+    CAREER_ASSETS.forEach(a=>{const owned=hasAsset(a.id);
+      h+='<div class="shop-item"><div><div class="item-name">'+a.name+'</div><div class="item-desc">'+a.desc+(a.upkeep?' · '+fmt(a.upkeep)+'/day':'')+'</div></div>';
+      if(owned)h+='<span style="color:var(--cyan);font-size:14px">OWNED</span>';
+      else h+='<button class="shop-buy-btn" style="border-color:var(--cyan);color:var(--cyan)" onclick="buyAsset(\''+a.id+'\')" '+(G.cash>=a.cost?'':'disabled')+'>'+fmt(a.cost)+'</button>';
+      h+='</div>'});
+  }
   $('market-list').innerHTML=h;document.querySelector('#market-screen .screen-title').textContent='SHOP';showScreen('market-screen');
 }
 function buyWp(id){const w=WEAPONS.find(w=>w.id===id);G.cash-=w.cost;G.boughtWp.push(id);G.weapon=id;addLog('Bought '+w.name+' ('+fmt(w.cost)+')');updateUI();showShop()}
@@ -568,16 +668,26 @@ function showStash(){
 function stDep(id){const n=G.inv[id]||0;if(n<=0)return;G.stash[id]=(G.stash[id]||0)+n;delete G.inv[id];addLog('Stored '+n+' '+DRUGS.find(d=>d.id===id).name);updateUI();showStash()}
 function stWd(id){const n=G.stash[id]||0,sp=G.invCap-invT(),t=Math.min(n,sp);if(t<=0)return;G.inv[id]=(G.inv[id]||0)+t;G.stash[id]-=t;if(G.stash[id]<=0)delete G.stash[id];addLog('Took '+t+' '+DRUGS.find(d=>d.id===id).name+' from stash');updateUI();showStash()}
 
-function gameOver(died){
-  stopBeat();stopHeartbeat();
-  localStorage.removeItem('dw_save');
-  const nw=G.cash+G.bank-G.debt,surv=Math.min(G.day,G.maxDays);
+// how: undefined = clock ran out, 'died', 'retired', 'victory'
+function gameOver(died,how){
+  if(G._over)return;G._over=true; // never score the same run twice
+  stopBeat();stopHeartbeat();hideModal();hideQM();
+  if(died&&!how)how='died';
+  const mode=G.mode||'classic';localStorage.removeItem(saveKey(mode));
+  if(mode==='mafia'){mafiaGameOver(how);return}
+  const assetVal=mode==='career'?G.assets.reduce((s,id)=>s+Math.round(CAREER_ASSETS.find(a=>a.id===id).cost*.5),0):0;
+  const nw=G.cash+G.bank-G.debt+assetVal,surv=G.maxDays?Math.min(G.day,G.maxDays):G.day;
   let topL='None',topV=0;Object.entries(G.st.visits).forEach(([id,c])=>{if(c>topV){topV=c;topL=getLoc(id).name}});
-  saveHS(G.name,nw,G.diff,surv);
+  saveHS(G.name,nw,G.diff,surv,mode,how==='died');
   if(died)playDeath();else{playVictory();const _hs=JSON.parse(localStorage.getItem('dw_scores')||'[]');if(_hs.some(s=>s.name===G.name&&s.nw===nw))setTimeout(playHighScore,800)}
-  let h=died?'<h1>💀 GAME OVER</h1><p style="font-size:18px;color:var(--red);text-align:center;margin-bottom:16px">'+G.name+' didn\'t make it.</p>':'<h1 class="win">🏆 TIME\'S UP</h1><p style="font-size:18px;color:var(--green);text-align:center;margin-bottom:16px">'+G.name+' survived '+surv+' days.</p>';
+  let h;
+  if(died)h='<h1>💀 GAME OVER</h1><p style="font-size:18px;color:var(--red);text-align:center;margin-bottom:16px">'+G.name+' didn\'t make it.'+(mode==='career'?' Day '+G.day+'. That\'s the career.':'')+'</p>';
+  else if(how==='retired')h='<h1 class="win">🏝️ WALKED AWAY</h1><p style="font-size:18px;color:var(--green);text-align:center;margin-bottom:16px">'+G.name+' retired after '+surv+' days on the street.</p>';
+  else h='<h1 class="win">🏆 TIME\'S UP</h1><p style="font-size:18px;color:var(--green);text-align:center;margin-bottom:16px">'+G.name+' survived '+surv+' days.</p>';
   h+='<div class="go-stats">';
-  h+=gs('Net Worth',fmt(nw),nw<0)+gs('Cash',fmt(G.cash))+gs('Bank',fmt(G.bank))+gs('Debt',fmt(G.debt),G.debt>0)+gs('Days',surv+'/'+G.maxDays)+gs('Rep',Math.round(G.rep));
+  h+=gs('Net Worth',fmt(nw),nw<0)+gs('Cash',fmt(G.cash))+gs('Bank',fmt(G.bank))+gs('Debt',fmt(G.debt),G.debt>0);
+  if(mode==='career')h+=gs('Assets (resale)',fmt(assetVal))+gs('Seasons',G.season);
+  h+=gs('Days',surv+(G.maxDays?'/'+G.maxDays:''))+gs('Rep',Math.round(G.rep));
   h+=gs('Deals',G.st.deals)+gs('Biggest Deal',fmt(G.st.bigDeal))+gs('Total Earned',fmt(G.st.earned))+gs('Bought',G.st.bought+' units')+gs('Sold',G.st.sold+' units');
   h+=gs('RCMP Encounters',G.st.rcmp)+gs('Fights Won',G.st.rcmpW)+gs('Times Mugged',G.st.mugs)+gs('Most Visited',topL+' ('+topV+')');
   const tn=G.tier===3?'Kingpin':G.tier===2?'Shot Caller':'Street Runner';h+=gs('Tier',tn);
@@ -586,46 +696,61 @@ function gameOver(died){
   if(G.st.hookups)h+=gs('Hookups',G.st.hookups);
   if(Object.keys(G.st.drugSold).length>0){h+='<div style="padding:12px 0 4px;font-family:\'Press Start 2P\',monospace;font-size:8px;color:var(--yellow)">DRUGS SOLD</div>';
     Object.entries(G.st.drugSold).forEach(([id,q])=>{h+=gs(DRUGS.find(d=>d.id===id).name,q+' / '+fmt(G.st.drugRev[id]||0))})}
-  h+='</div><div style="display:flex;flex-direction:column;gap:8px;align-items:center;padding:16px"><button class="btn w-full" onclick="showSetup()">PLAY AGAIN</button><button class="btn yellow w-full" onclick="showScores()">HIGH SCORES</button><button class="btn red small w-full" onclick="showScreen(\'title-screen\')">MAIN MENU</button></div>';
+  h+='</div>'+goButtons(mode);
   $('gameover-screen').innerHTML=h;showScreen('gameover-screen');
 }
+function goButtons(mode){return '<div style="display:flex;flex-direction:column;gap:8px;align-items:center;padding:16px"><button class="btn w-full" onclick="showSetup()">PLAY AGAIN</button><button class="btn yellow w-full" onclick="showScores(\''+mode+'\')">HIGH SCORES</button><button class="btn red small w-full" onclick="showScreen(\'title-screen\')">MAIN MENU</button></div>'}
 function gs(l,v,neg){return '<div class="go-stat"><span class="label">'+l+'</span><span class="value '+(neg?'negative':'')+'">'+v+'</span></div>'}
 
-function saveHS(name,nw,diff,days){let s=JSON.parse(localStorage.getItem('dw_scores')||'[]');s.push({name,nw,diff,days,date:new Date().toLocaleDateString()});s.sort((a,b)=>b.nw-a.nw);s=s.slice(0,20);localStorage.setItem('dw_scores',JSON.stringify(s));postScore(name,nw,diff,days)}
+function saveHS(name,nw,diff,days,mode,died){mode=mode||'classic';let s=JSON.parse(localStorage.getItem('dw_scores')||'[]');s.push({name,nw,diff,days,mode,died:!!died,date:new Date().toLocaleDateString()});
+  // keep top 20 per mode
+  const out=[];['classic','career','mafia'].forEach(m=>{out.push(...s.filter(e=>(e.mode||'classic')===m).sort((a,b)=>b.nw-a.nw).slice(0,20))});
+  localStorage.setItem('dw_scores',JSON.stringify(out));postScore(name,nw,diff,days,mode,died)}
 // Leaderboard hook. In the browser it POSTs to the same origin (/api/scores).
 // Inside the Android app the page is served from the APK, so it posts to the
 // home server directly. Fails silently when offline or when no API is running.
 const LEADERBOARD_HOME='https://dopewarsmoncton.tail8174d5.ts.net';
 function leaderboardBase(){try{return (window.Capacitor&&window.Capacitor.isNativePlatform&&window.Capacitor.isNativePlatform())?LEADERBOARD_HOME:''}catch(e){return ''}}
-function postScore(name,nw,diff,days){try{const score=Math.round(nw);if(!(score>0)||!/^https?:$/.test(location.protocol))return;fetch(leaderboardBase()+'/api/scores',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:String(name).slice(0,20),score,diff,days}),keepalive:true}).catch(()=>{})}catch(e){}}
-function showScores(){const s=JSON.parse(localStorage.getItem('dw_scores')||'[]');let h='';if(s.length===0)h='<div style="padding:40px;color:var(--text-dim);text-align:center">No scores yet!</div>';
-  else s.forEach((e,i)=>{h+='<div class="score-entry"><span class="score-rank">#'+(i+1)+'</span><span class="score-name">'+e.name+' <span style="font-size:12px;color:var(--text-dim)">('+e.diff+')</span></span><span class="score-cash">'+fmt(e.nw)+'</span></div>'});
+function postScore(name,nw,diff,days,mode,died){try{const score=Math.round(nw);if(!(score>0)||!/^https?:$/.test(location.protocol))return;fetch(leaderboardBase()+'/api/scores',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:String(name).slice(0,20),score,diff,days,mode:mode||'classic',died:!!died}),keepalive:true}).catch(()=>{})}catch(e){}}
+function showScores(mode){mode=mode||'classic';document.querySelectorAll('.score-tab').forEach((t,i)=>t.classList.toggle('sel',['classic','career','mafia'][i]===mode));
+  const s=JSON.parse(localStorage.getItem('dw_scores')||'[]').filter(e=>(e.mode||'classic')===mode).sort((a,b)=>b.nw-a.nw);let h='';if(s.length===0)h='<div style="padding:40px;color:var(--text-dim);text-align:center">No '+mode+' scores yet!</div>';
+  else s.forEach((e,i)=>{h+='<div class="score-entry"><span class="score-rank">#'+(i+1)+'</span><span class="score-name">'+e.name+' <span style="font-size:12px;color:var(--text-dim)">('+e.diff+(e.died?', died':'')+(mode!=='classic'&&e.days?', '+e.days+'d':'')+')</span></span><span class="score-cash">'+fmt(e.nw)+'</span></div>'});
   $('scores-list').innerHTML=h;showScreen('scores-screen');
 }
+// One save slot per mode. The pre-2.1 single slot 'dw_save' becomes the classic slot.
+function saveKey(mode){return 'dw_save_'+(mode||'classic')}
+(function migrateSave(){try{const o=localStorage.getItem('dw_save');if(o&&!localStorage.getItem('dw_save_classic')){localStorage.setItem('dw_save_classic',o)}if(o)localStorage.removeItem('dw_save')}catch(e){}})();
 function saveGame(manual){
-  try{localStorage.setItem('dw_save',JSON.stringify({G:G,market:market}));
+  try{localStorage.setItem(saveKey(G.mode),JSON.stringify({G:G,market:market}));
   if(manual)addLog('<span class="text-green">💾 Game saved.</span>')}catch(e){}
 }
-function loadSave(){try{const s=localStorage.getItem('dw_save');return s?JSON.parse(s):null}catch(e){return null}}
-function hasSave(){return !!loadSave()}
-function continueGame(){
-  const save=loadSave();if(!save)return;
-  G=save.G;market=save.market;if(!G.costBasis)G.costBasis={};
+function loadSave(mode){try{const s=localStorage.getItem(saveKey(mode));return s?JSON.parse(s):null}catch(e){return null}}
+function savedModes(){return ['classic','career','mafia'].filter(m=>!!loadSave(m))}
+function hasSave(){return savedModes().length>0}
+function continueGame(mode){
+  if(!mode){const ms=savedModes();if(ms.length===0)return;if(ms.length===1){continueGame(ms[0]);return}
+    let h='<h2>▶ CONTINUE</h2><p style="font-size:14px;color:var(--text-dim)">You have more than one game going.</p><div class="modal-buttons">';
+    ms.forEach(m=>{const s=loadSave(m).G;h+='<button class="btn w-full '+(m==='career'?'cyan':m==='mafia'?'yellow':'')+'" onclick="hideModal();continueGame(\''+m+'\')">'+m.toUpperCase()+' · '+s.name+' · DAY '+s.day+'</button>'});
+    h+='<button class="btn red small w-full" onclick="hideModal()">CANCEL</button></div>';showModal(h);return}
+  const save=loadSave(mode);if(!save)return;
+  G=save.G;market=save.market;if(!G.mode)G.mode='classic';if(!G.costBasis)G.costBasis={};
   if(!G.tier)G.tier=1;if(!G.unlockedTier)G.unlockedTier=getUnlockedTier();if(!G.maxTier)G.maxTier=3;
   if(!G.gang)G.gang=null;if(!G.gangRep)G.gangRep=0;if(!G.enemies)G.enemies=[];
   if(!G.gangMission)G.gangMission=null;if(!G.gangMissionDays)G.gangMissionDays=0;
   if(!G.st.rivals)G.st.rivals=0;if(!G.st.hookups)G.st.hookups=0;
-  $('event-log').innerHTML='';
-  addLog('Welcome back, '+G.name+'. Day '+G.day+'/'+G.maxDays+'.');
+  if(G.mode==='career'){if(!G.season)G.season=1;if(!G.assets)G.assets=[];if(!G.nextCollector)G.nextCollector=30;if(G.seasonFxDays===undefined)G.seasonFxDays=0;if(!G.seasonEarned)G.seasonEarned=0;if(!G.seasonDeals)G.seasonDeals=0}
+  $('event-log').innerHTML='';renderActions();
+  addLog('Welcome back, '+G.name+'. Day '+G.day+(G.maxDays?'/'+G.maxDays:'')+'.');
   updateUI();showScreen('game-screen');playBeat();
 }
-function newGame(){
-  if(hasSave()){showModal('<h2>⚠️ WARNING</h2><p>This will overwrite your existing save.</p><div class="modal-buttons"><button class="btn w-full" onclick="hideModal();showSetup()">START NEW</button><button class="btn red small w-full" onclick="hideModal()">CANCEL</button></div>')}
-  else showSetup();
-}
-function showSetup(){selTier=1;renderTierSelector();showScreen('setup-screen')}
+function newGame(){showSetup()}
+function showSetup(){selTier=1;$('mode-desc').textContent=MODE_DESC[selMode];renderTierSelector();showScreen('setup-screen')}
 function updateTitleBtns(){$('btn-continue').style.display=hasSave()?'':'none'}
-function exitMenu(){showModal('<h2>🚪 EXIT</h2><p>Return to main menu?</p><p style="font-size:14px;color:var(--text-dim)">Your game is auto-saved.</p><div class="modal-buttons"><button class="btn w-full" onclick="doExit()">EXIT</button><button class="btn red small w-full" onclick="hideModal()">CANCEL</button></div>')}
+function exitMenu(){
+  let extra='';
+  if(G.mode==='career'&&G.day>=30&&G.debt<=0)extra='<button class="btn cyan w-full" onclick="hideModal();confirmRetire()">🏝️ RETIRE</button>';
+  else if(G.mode==='career')extra='<p style="font-size:12px;color:var(--text-dim)">Retire unlocks after day 30 with no debt.</p>';
+  showModal('<h2>🚪 EXIT</h2><p>Return to main menu?</p><p style="font-size:14px;color:var(--text-dim)">Your game is auto-saved.</p><div class="modal-buttons"><button class="btn w-full" onclick="doExit()">EXIT</button>'+extra+'<button class="btn red small w-full" onclick="hideModal()">CANCEL</button></div>')}
 function doExit(){hideModal();saveGame();stopBeat();stopHeartbeat();showScreen('title-screen')}
 function getScoutTag(loc){
   if(invT()===0)return '';
@@ -662,6 +787,7 @@ function getDealerTip(){
 }
 function checkTip(){
   let c;if(G.diff==='easy')c=.4;else if(G.diff==='normal')c=.25;else c=.08;
+  if(G.mode==='career'&&hasAsset('burner'))c=1;
   if(!ch(c))return;
   const tip=getDealerTip();
   playTipSnd();addLog('<span class="text-cyan">💬 '+tip+'</span>');
@@ -804,6 +930,238 @@ function doHookup(cost){
 function rcmpTaskForce(){
   G.heat=Math.min(100,G.heat+25);
   addLog('<span class="text-red">🚔 RCMP task force set up specifically to catch you, '+G.name+'!</span>');
+}
+
+// === CAREER MODE ===
+const SEASON_FX={
+  crackdown:{name:'Crackdown',tag:'🚔 Crackdown',desc:'RCMP is everywhere for 5 days. Encounters doubled, heat barely decays.',rcmp:2,decay:.5},
+  drought:{name:'Drought',tag:'🏜️ Drought',desc:'Supply dried up for 5 days. Half the product, prices up 60%.',supply:.5,price:1.6},
+  flood:{name:'Flood',tag:'🌊 Flood',desc:'A Montreal shipment landed. Everything is 40% off for 5 days.',price:.6},
+  festival:{name:'Festival',tag:'🎉 Festival',desc:'Festival week. Molly, Xanax and Ketamine sell for 2.5x for 5 days.',party:2.5},
+  quiet:{name:'Quiet Streets',tag:'😌 Quiet',desc:'Nothing happening. Heat decays twice as fast for 5 days.',decay:2}
+};
+const CAREER_ASSETS=[
+  {id:'burner',name:'Burner Phones',cost:2500,desc:'A dealer tip every single day'},
+  {id:'runner',name:'Runner',cost:6000,upkeep:150,desc:'+150 carry capacity'},
+  {id:'safehouse',name:'Safehouse',cost:12000,desc:'Lay Low: 2x heat drop, +20 HP. Unlocks the stash'},
+  {id:'lawyer',name:'Lawyer on Retainer',cost:20000,desc:'RCMP cash & product losses halved'},
+  {id:'laundromat',name:'Laundromat Front',cost:30000,desc:'+$400/day, -5 heat/day'},
+  {id:'cop',name:'Cop on the Payroll',cost:45000,upkeep:300,desc:'RCMP encounters halved'}
+];
+function hasAsset(id){return G.mode==='career'&&Array.isArray(G.assets)&&G.assets.includes(id)}
+function lawyerMod(){return hasAsset('lawyer')?.5:1}
+function buyAsset(id){const a=CAREER_ASSETS.find(x=>x.id===id);if(!a||G.cash<a.cost||hasAsset(id))return;G.cash-=a.cost;G.assets.push(id);
+  if(id==='runner')G.invCap+=150;if(id==='safehouse'&&!G.stashOn){G.stashOn=true;addLog('<span class="text-orange">★ STASH HOUSE UNLOCKED!</span>')}
+  playUnlock();addLog('<span class="text-cyan">Bought '+a.name+' ('+fmt(a.cost)+')</span>');updateUI();showShop()}
+function loseAsset(id,why){G.assets=G.assets.filter(x=>x!==id);if(id==='runner')G.invCap=Math.max(100,G.invCap-150);addLog('<span class="text-red">'+CAREER_ASSETS.find(a=>a.id===id).name+' gone: '+why+'</span>')}
+function careerUpkeep(){
+  if(hasAsset('laundromat')){G.cash+=400;G.heat=Math.max(0,G.heat-5)}
+  CAREER_ASSETS.filter(a=>a.upkeep&&hasAsset(a.id)).forEach(a=>{if(G.cash>=a.upkeep)G.cash-=a.upkeep;else loseAsset(a.id,'couldn\'t pay the '+fmt(a.upkeep)+'/day')});
+}
+function checkSeason(){
+  if(G.day<=G.season*30)return false;
+  const sEarned=G.seasonEarned,sDeals=G.seasonDeals;G.season++;G.seasonEarned=0;G.seasonDeals=0;
+  const keys=Object.keys(SEASON_FX);const k=keys[rndI(0,keys.length-1)];const fx=SEASON_FX[k];G.seasonFx=k;G.seasonFxDays=5;
+  market=genMarket();playNews();
+  addLog('<span class="text-yellow">📅 Season '+(G.season-1)+' over. '+fx.tag+' for the next 5 days.</span>');
+  showModal('<h2>📅 SEASON '+(G.season-1)+' OVER</h2><p style="font-size:14px">Earned '+fmt(sEarned)+' in '+sDeals+' deals.<br>Net worth '+fmt(G.cash+G.bank-G.debt)+'. Rep '+Math.round(G.rep)+'.</p><p style="color:var(--yellow);font-family:\'Press Start 2P\',monospace;font-size:9px">'+fx.tag.toUpperCase()+'</p><p style="font-size:14px;color:var(--text-dim)">'+fx.desc+'</p><div class="modal-buttons"><button class="btn w-full" onclick="hideModal()">NEXT SEASON</button></div>');
+  updateUI();return true;
+}
+function checkCollector(){
+  if(G.day<30||G.debt<=0||G.day<G.nextCollector)return false;
+  G.nextCollector=G.day+10;const due=Math.round(G.debt*.25);playMugging();
+  addLog('<span class="text-red">🦈 The loan shark sent collectors. They want '+fmt(due)+'.</span>');
+  showModal('<h2>🦈 COLLECTORS</h2><p>Two guys who don\'t smile. The shark wants '+fmt(due)+' today, or they take it out of you.</p><div class="modal-buttons"><button class="btn w-full" onclick="collectorPay('+due+')" '+(G.cash>=due?'':'disabled')+'>PAY '+fmt(due)+'</button><button class="btn red w-full" onclick="collectorBeat()">TAKE THE BEATING</button></div>');
+  return true;
+}
+function collectorPay(due){hideModal();G.cash-=due;G.debt-=due;if(G.debt<=0){G.debt=0;addLog('<span class="text-green">★ DEBT PAID OFF! The shark\'s off your back.</span>')}else addLog('Paid the collectors '+fmt(due)+'. Debt: '+fmt(G.debt));updateUI()}
+function collectorBeat(){hideModal();const hp=rndI(20,35),dl=dropDrugs(rnd(.2,.4));G.health-=hp;addLog('<span class="text-red">The collectors worked you over. -'+hp+' HP'+(dl>0?', -'+dl+' units':'')+'</span>');if(G.health<=0){G.health=0;updateUI();setTimeout(()=>gameOver(true),500);return}updateUI()}
+function confirmRetire(){const assetVal=G.assets.reduce((s,id)=>s+Math.round(CAREER_ASSETS.find(a=>a.id===id).cost*.5),0);showModal('<h2>🏝️ RETIRE?</h2><p>Walk away with '+fmt(G.cash+G.bank+assetVal)+'?</p><p style="font-size:14px;color:var(--text-dim)">Cash + bank + assets at resale. This ends the career for good.</p><div class="modal-buttons"><button class="btn cyan w-full" onclick="gameOver(false,\'retired\')">WALK AWAY</button><button class="btn red small w-full" onclick="hideModal()">NOT YET</button></div>')}
+
+// === MAFIA MODE ===
+const MF={
+  adj:{lewisville:['pinetree','cornhill','kingswood'],pinetree:['lewisville','joyce','foxcreek'],joyce:['pinetree','stgeorge'],stgeorge:['joyce','dogpatch'],dogpatch:['stgeorge','ackmin'],ackmin:['dogpatch','marshes'],marshes:['ackmin','lakeside'],lakeside:['marshes','cornhill'],cornhill:['lakeside','lewisville'],foxcreek:['pinetree','kingswood'],kingswood:['foxcreek','lewisville'],mall:[]},
+  garrison:{1:3,2:4,3:5,4:6,5:8},
+  perDealer:400,                       // $/day per dealer at priceMod 1.0
+  hire:{dealer:1200,soldier:2000},upkeep:{dealer:75,soldier:125},
+  respectGate:{foxcreek:150,kingswood:300},
+  biz:[{id:'front',name:'Front Business',cost:15000,desc:'Laundering fee 10% instead of 20%'},{id:'cop',name:'Cop on the Payroll',cost:25000,desc:'-4 citywide heat every day'},{id:'chop',name:'Chop Shop',cost:20000,desc:'+$600 dirty cash every day'},{id:'lawyer',name:'Lawyer',cost:30000,desc:'Raids cost income only, never dealers'}]
+};
+function hoods(){return LOCATIONS.filter(l=>!l.isShop)}
+function myHoods(){return G.terr?hoods().filter(l=>G.terr[l.id].owner==='you'):[]}
+function gangName(id){const g=GANGS.find(x=>x.id===id);return g?g.name:id}
+function ownerLabel(o){return o==='you'?'YOURS':o==='none'?'Unclaimed':gangName(o)}
+function hasBiz(id){return G.biz&&G.biz.includes(id)}
+function hireCost(t){const disc=Math.max(.5,1-Math.floor(G.rep/100)*.1);return Math.round(MF.hire[t]*disc)}
+function mafiaInit(name,diff){
+  const d=DIFF[diff];
+  G={mode:'mafia',name,diff,day:1,maxDays:60,cash:Math.round(12000*d.cashM),dirty:0,debt:Math.round(20000*d.debtM),bank:0,health:100,maxHP:100,heat:0,rep:0,location:'joyce',
+    tier:3,unlockedTier:getUnlockedTier(),maxTier:3,inv:{},stash:{},costBasis:{},invCap:0,weapon:null,stashOn:false,boughtUp:[],boughtWp:[],freeT:false,bus2x:false,gang:null,gangRep:0,enemies:[],gangMission:null,gangMissionDays:0,
+    pool:{dealers:0,soldiers:3},terr:{},gangs:{},ally:null,biz:[],attacked:false,bankFrozen:0,lastIncome:0,
+    st:{deals:0,bigDeal:0,bought:0,sold:0,drugSold:{},drugRev:{},rcmp:0,rcmpW:0,rcmpR:0,mugs:0,visits:{},earned:0,rivals:0,hookups:0,taken:0,fightsW:0,fightsL:0,laundered:0,raids:0,lostHoods:0}};
+  hoods().forEach(l=>{G.terr[l.id]={owner:'none',dealers:0,soldiers:rndI(1,2),heat:0,income:0}});
+  GANGS.forEach(g=>{G.terr[g.territory]={owner:g.id,dealers:0,soldiers:MF.garrison[g.diff],heat:0,income:0};G.gangs[g.id]={status:'neutral',peace:0}});
+  G.terr.joyce={owner:'you',dealers:3,soldiers:1,heat:0,income:0};
+  market={};$('event-log').innerHTML='';renderActions();
+  addLog('You\'re the boss now, '+G.name+'. Joyce Avenue is yours. 60 days to take Moncton.');
+  addLog('The Family fronted you '+fmt(G.debt)+'. Clean money only when you pay them back.');
+  addLog('Dealers earn dirty cash. Wash it at the Mall. Soldiers hold what you take.');
+  updateUI();showScreen('game-screen');playGameStart();setTimeout(playBeat,600);
+}
+function hoodIncome(l){const t=G.terr[l.id];if(t.owner!=='you'||t.dealers===0)return 0;let inc=t.dealers*MF.perDealer*l.priceMod*(1+G.rep/1000);
+  if(G.ally){const ag=GANGS.find(g=>g.id===G.ally);if(MF.adj[l.id].includes(ag.territory))inc*=1.1}
+  return Math.round(inc)}
+function borderHostile(lid){return MF.adj[lid].some(n=>{const o=G.terr[n].owner;return o!=='you'&&o!=='none'&&G.gangs[o]&&G.gangs[o].status==='hostile'})}
+// --- Empire screen ---
+function showEmpire(){
+  let h='<div style="padding:4px 0 8px;font-size:14px;color:var(--text-dim)">HQ pool: <span class="text-green">'+G.pool.dealers+' dealers</span>, <span class="text-cyan">'+G.pool.soldiers+' soldiers</span>'+(G.attacked?' · <span class="text-red">already attacked today</span>':'')+'</div>';
+  hoods().forEach(l=>{const t=G.terr[l.id];const mine=t.owner==='you';const gang=t.owner!=='you'&&t.owner!=='none';const hostile=gang&&G.gangs[t.owner].status==='hostile';
+    const gate=MF.respectGate[l.id];const locked=gate&&G.rep<gate&&!mine;
+    h+='<div class="terr-card '+(mine?'mine':hostile?'enemy':'')+'"><div class="terr-head"><span class="terr-name">'+l.name+'</span><span class="terr-owner">'+ownerLabel(t.owner)+(hostile?' <span class="text-red">HOSTILE</span>':gang&&G.gangs[t.owner].status==='ally'?' <span class="text-green">ALLY</span>':'')+'</span></div>';
+    if(mine)h+='<div class="terr-row"><span>💊 '+t.dealers+'/5 dealers · 🔫 '+t.soldiers+' soldiers</span><span>heat '+Math.round(t.heat)+'</span></div><div class="terr-row"><span>'+fmt(hoodIncome(l))+'/day'+(borderHostile(l.id)?' · <span class="text-red">borders enemy</span>':'')+'</span><span>$'+Math.round(MF.perDealer*l.priceMod)+'/dealer</span></div>';
+    else h+='<div class="terr-row"><span>🔫 '+t.soldiers+' defenders'+(locked?' · <span class="text-orange">need '+gate+' respect</span>':'')+'</span><span>$'+Math.round(MF.perDealer*l.priceMod)+'/dealer</span></div>';
+    h+='<div class="terr-btns">';
+    if(mine)h+='<button class="post" onclick="postCrew(\''+l.id+'\',\'dealers\')" '+(G.pool.dealers>0&&t.dealers<5?'':'disabled')+'>+ DEALER</button><button class="post" onclick="postCrew(\''+l.id+'\',\'soldiers\')" '+(G.pool.soldiers>0?'':'disabled')+'>+ SOLDIER</button><button class="recall" onclick="recallCrew(\''+l.id+'\',\'dealers\')" '+(t.dealers>0?'':'disabled')+'>- DEALER</button><button class="recall" onclick="recallCrew(\''+l.id+'\',\'soldiers\')" '+(t.soldiers>0?'':'disabled')+'>- SOLDIER</button>';
+    else h+='<button class="take" onclick="takeHood(\''+l.id+'\')" '+(!G.attacked&&G.pool.soldiers>0&&!locked?'':'disabled')+'>⚔️ TAKE</button>';
+    h+='</div></div>'});
+  $('empire-list').innerHTML=h;showScreen('empire-screen');
+}
+function postCrew(lid,type){const t=G.terr[lid];if(G.pool[type]<=0)return;if(type==='dealers'&&t.dealers>=5)return;G.pool[type]--;t[type]++;showEmpire()}
+function recallCrew(lid,type){const t=G.terr[lid];if(t[type]<=0)return;t[type]--;G.pool[type]++;showEmpire()}
+function takeHood(lid){const t=G.terr[lid];window._tk=lid;window._tn=Math.min(G.pool.soldiers,Math.max(1,t.soldiers+1));window._tm=G.pool.soldiers;renderTake()}
+function takeChance(n,lid){const d=G.terr[lid].soldiers;const bonus=(G.ally&&G.gangs[G.ally].status==='ally')?2:0;return cl((n+bonus)/((n+bonus)+d*1.2),.1,.9)}
+function renderTake(){const lid=window._tk,l=getLoc(lid),t=G.terr[lid],n=window._tn;const gang=t.owner!=='none'&&t.owner!=='you';
+  showQM('<h2>⚔️ TAKE '+l.name.toUpperCase()+'</h2><p style="font-size:14px">'+ownerLabel(t.owner)+' · '+t.soldiers+' defenders'+(gang?'<br><span class="text-red">This makes '+gangName(t.owner)+' hostile.</span>':'')+'</p><div class="qty-controls"><button class="qty-btn" onclick="tkq(-1)">-</button><span class="qty-display" id="tk-d">'+n+'</span><button class="qty-btn" onclick="tkq(1)">+</button></div><div class="qty-info">soldiers · success ~<span id="tk-p">'+Math.round(takeChance(n,lid)*100)+'%</span>'+(G.ally?' (ally +2)':'')+'</div><p style="font-size:12px;color:var(--text-dim)">Win: hood is yours, lose 30% of the crew you sent. Lose: 50%. Heat +10 either way.</p><div class="modal-buttons"><button class="btn w-full" style="border-color:var(--orange);color:var(--orange)" onclick="doTake()">SEND THEM</button><button class="btn red small w-full" onclick="hideQM()">CANCEL</button></div>')}
+function tkq(d){window._tn=cl(window._tn+d,1,window._tm);$('tk-d').textContent=window._tn;$('tk-p').textContent=Math.round(takeChance(window._tn,window._tk)*100)+'%'}
+function doTake(){hideQM();const lid=window._tk,n=window._tn,t=G.terr[lid],l=getLoc(lid);const p=takeChance(n,lid);const prevOwner=t.owner;
+  G.attacked=true;G.pool.soldiers-=n;G.heat=Math.min(100,G.heat+10);t.heat+=10;
+  if(prevOwner!=='none'&&prevOwner!=='you'&&G.gangs[prevOwner].status!=='hostile'){G.gangs[prevOwner].status='hostile';G.gangs[prevOwner].peace=0;if(G.ally===prevOwner)G.ally=null;addLog('<span class="text-red">🏍️ '+gangName(prevOwner)+' is now hostile.</span>')}
+  if(ch(p)){const lost=Math.floor(n*.3);const back=n-lost;t.owner='you';t.dealers=0;t.soldiers=back;G.st.taken++;G.st.fightsW++;G.rep+=prevOwner==='none'?15:35;playUnlock();
+    addLog('<span class="text-green">⚔️ Took '+l.name+'! Lost '+lost+' soldiers. '+back+' now hold it.</span>');
+    if(prevOwner!=='none'&&!hoods().some(x=>G.terr[x.id].owner===prevOwner)){G.gangs[prevOwner].status='broken';G.rep+=50;addLog('<span class="text-orange">🏍️ '+gangName(prevOwner)+' is broken. +50 respect.</span>')}
+    showModal('<h2>⚔️ '+l.name.toUpperCase()+' IS YOURS</h2><p>Lost '+lost+' soldiers taking it. '+back+' are holding it now.</p><p style="font-size:14px;color:var(--text-dim)">Post dealers there to start earning.</p><div class="modal-buttons"><button class="btn w-full" onclick="hideModal();if(!checkVictory())showEmpire()">NICE</button></div>');
+  }else{const lost=Math.ceil(n*.5);G.pool.soldiers+=n-lost;G.st.fightsL++;playMugging();
+    addLog('<span class="text-red">⚔️ Failed to take '+l.name+'. Lost '+lost+' soldiers.</span>');
+    showModal('<h2>⚔️ PUSHED BACK</h2><p>'+ownerLabel(prevOwner)+' held '+l.name+'. You lost '+lost+' soldiers.</p><div class="modal-buttons"><button class="btn w-full" onclick="hideModal();showEmpire()">DAMN</button></div>')}
+  updateUI();
+}
+// --- Crew & business ---
+function showCrew(){
+  const up=crewUpkeep();
+  let h='<div style="padding:4px 0 8px;font-size:14px;color:var(--text-dim)">Clean '+fmt(G.cash)+' · Dirty '+fmt(G.dirty)+' · Upkeep '+fmt(up)+'/day</div>';
+  h+='<div style="font-size:12px;color:var(--text-dim);padding-bottom:6px">Hiring and bribes spend dirty cash first. Respect '+Math.round(G.rep)+' → '+Math.round((1-Math.max(.5,1-Math.floor(G.rep/100)*.1))*100)+'% off hires.</div>';
+  [['dealers','Dealer','Earns $/day in a hood you own. Max 5 per hood.'],['soldiers','Soldier','Defends hoods, takes hoods, guards you at HQ.']].forEach(([k,n,d])=>{const type=k==='dealers'?'dealer':'soldier';const c=hireCost(type);
+    h+='<div class="shop-item"><div><div class="item-name">'+n+'s: '+G.pool[k]+' at HQ</div><div class="item-desc">'+d+' Upkeep '+fmt(MF.upkeep[type])+'/day.</div></div><div style="display:flex;gap:4px"><button class="shop-buy-btn" onclick="hire(\''+k+'\')" '+(G.dirty+G.cash>=c?'':'disabled')+'>HIRE '+fmt(c)+'</button><button class="shop-buy-btn" style="border-color:var(--red);color:var(--red)" onclick="dismiss(\''+k+'\')" '+(G.pool[k]>0?'':'disabled')+'>CUT</button></div></div>'});
+  h+='<div class="shop-item"><div><div class="item-name">Bribe RCMP</div><div class="item-desc">-25 citywide heat. Heat now: '+Math.round(G.heat)+'</div></div><button class="shop-buy-btn" onclick="bribe()" '+(G.dirty+G.cash>=3000?'':'disabled')+'>$3,000</button></div>';
+  h+='<div style="padding:12px 0 4px;font-size:14px;color:var(--orange)">Businesses (clean cash, permanent):</div>';
+  MF.biz.forEach(b=>{const owned=hasBiz(b.id);h+='<div class="shop-item"><div><div class="item-name">'+b.name+'</div><div class="item-desc">'+b.desc+'</div></div>';
+    if(owned)h+='<span style="color:var(--orange);font-size:14px">OWNED</span>';else h+='<button class="shop-buy-btn" style="border-color:var(--orange);color:var(--orange)" onclick="buyBiz(\''+b.id+'\')" '+(G.cash>=b.cost?'':'disabled')+'>'+fmt(b.cost)+'</button>';h+='</div>'});
+  $('crew-list').innerHTML=h;showScreen('crew-screen');
+}
+function crewUpkeep(){let d=G.pool.dealers,s=G.pool.soldiers;hoods().forEach(l=>{const t=G.terr[l.id];if(t.owner==='you'){d+=t.dealers;s+=t.soldiers}});return d*MF.upkeep.dealer+s*MF.upkeep.soldier}
+function spendDirtyFirst(amt){if(G.dirty>=amt){G.dirty-=amt;return true}if(G.dirty+G.cash>=amt){const rest=amt-G.dirty;G.dirty=0;G.cash-=rest;return true}return false}
+function hire(k){const type=k==='dealers'?'dealer':'soldier';const c=hireCost(type);if(!spendDirtyFirst(c))return;G.pool[k]++;playBuy();addLog('Hired a '+type+' for '+fmt(c));updateUI();showCrew()}
+function dismiss(k){if(G.pool[k]<=0)return;G.pool[k]--;addLog('Cut a '+(k==='dealers'?'dealer':'soldier')+' loose.');updateUI();showCrew()}
+function bribe(){if(!spendDirtyFirst(3000))return;G.heat=Math.max(0,G.heat-25);playBank();addLog('<span class="text-cyan">Greased some palms. Heat -25.</span>');updateUI();showCrew()}
+function buyBiz(id){const b=MF.biz.find(x=>x.id===id);if(!b||hasBiz(id)||G.cash<b.cost)return;G.cash-=b.cost;G.biz.push(id);playUnlock();addLog('<span class="text-orange">Bought '+b.name+' ('+fmt(b.cost)+')</span>');updateUI();showCrew()}
+// --- Sit-downs ---
+function showSitdowns(){
+  let h='<div style="padding:4px 0 8px;font-size:14px;color:var(--text-dim)">The clubs. Respect: <span class="text-orange">'+Math.round(G.rep)+'</span>'+(G.ally?' · Allied with '+gangName(G.ally):'')+'</div>';
+  GANGS.forEach(g=>{const s=G.gangs[g.id];const held=hoods().filter(l=>G.terr[l.id].owner===g.id).map(l=>l.name);
+    let sc=s.status==='hostile'?'var(--red)':s.status==='ally'?'var(--green)':s.status==='broken'?'var(--text-dim)':'var(--cyan)';
+    h+='<div class="gang-card"><div class="gang-name">'+g.name+'</div><div class="gang-desc">'+g.desc+'</div><div class="gang-info">Holds: '+(held.length?held.join(', '):'nothing')+' · Diff '+'★'.repeat(g.diff)+'</div><div class="gang-status" style="color:'+sc+'">'+s.status.toUpperCase()+(s.peace>0?' · peace '+s.peace+'d':'')+'</div>';
+    if(s.status!=='broken'){const trib=2000*g.diff;const allyReq=100*g.diff;
+      h+='<div style="display:flex;gap:4px;flex-wrap:wrap">';
+      if(s.status!=='ally')h+='<button class="gang-btn" onclick="tribute(\''+g.id+'\')" '+(G.dirty+G.cash>=trib?'':'disabled')+'>TRIBUTE '+fmt(trib)+' (10d peace)</button>';
+      if(s.status==='neutral'&&!G.ally)h+='<button class="gang-btn" style="border-color:var(--green);color:var(--green)" onclick="makeAlly(\''+g.id+'\')" '+(G.rep>=allyReq?'':'disabled')+'>ALLY (need '+allyReq+' respect)</button>';
+      h+='</div>'}
+    h+='</div>'});
+  $('gang-list').innerHTML=h;showScreen('gang-screen');
+}
+function tribute(gid){const g=GANGS.find(x=>x.id===gid);const c=2000*g.diff;if(!spendDirtyFirst(c))return;const s=G.gangs[gid];s.peace=10;if(s.status==='hostile')s.status='neutral';playBank();addLog('Paid '+g.name+' '+fmt(c)+' tribute. 10 days of peace.');updateUI();showSitdowns()}
+function makeAlly(gid){const g=GANGS.find(x=>x.id===gid);if(G.ally||G.rep<100*g.diff||G.gangs[gid].status!=='neutral')return;G.ally=gid;G.gangs[gid].status='ally';
+  if(g.side!=='neutral'){GANGS.filter(x=>x.side!=='neutral'&&x.side!==g.side).forEach(x=>{if(G.gangs[x.id].status==='neutral'){G.gangs[x.id].status='hostile';addLog('<span class="text-red">🏍️ '+x.name+' is now hostile.</span>')}})}
+  playUnlock();addLog('<span class="text-green">🏍️ Allied with '+g.name+'. +2 soldiers on every attack, +10% income next to their turf.</span>');updateUI();showSitdowns()}
+// --- Laundering ---
+function showLaunder(){window._lq=Math.min(G.dirty,5000);renderLaunder()}
+function launderFee(){return hasBiz('front')?.1:.2}
+function renderLaunder(){const q=window._lq,fee=launderFee();showQM('<h2>💵 LAUNDER</h2><p style="font-size:14px">Dirty: '+fmt(G.dirty)+' · Fee '+Math.round(fee*100)+'%'+(hasBiz('front')?' (front)':'')+'</p><div class="qty-controls"><button class="qty-btn" onclick="lq(-5000)">--</button><button class="qty-btn" onclick="lq(-1000)">-</button><span class="qty-display" id="lq-d">'+fmt(q)+'</span><button class="qty-btn" onclick="lq(1000)">+</button><button class="qty-btn" onclick="lq(5000)">++</button></div><div class="qty-info">You get <span class="text-green">'+fmt(q*(1-fee))+'</span> clean</div><button class="qty-max-btn" onclick="lq(1e12)">ALL ('+fmt(G.dirty)+')</button><div class="modal-buttons"><button class="btn w-full" onclick="doLaunder()" '+(q>0?'':'disabled')+'>WASH IT</button><button class="btn red small w-full" onclick="hideQM()">CANCEL</button></div>')}
+function lq(d){if(d>=1e12)window._lq=G.dirty;else window._lq=cl(window._lq+d,0,G.dirty);renderLaunder()}
+function doLaunder(){const q=window._lq;if(q<=0)return;const fee=launderFee();G.dirty-=q;const clean=Math.round(q*(1-fee));G.cash+=clean;G.st.laundered+=q;hideQM();playBank();addLog('Washed '+fmt(q)+' → '+fmt(clean)+' clean.');updateUI()}
+// --- The daily tick ---
+function endDay(){
+  showModal('<h2>⏭️ END DAY '+G.day+'?</h2><p style="font-size:14px;color:var(--text-dim)">Crews earn, heat moves, the clubs make their moves.</p><div class="modal-buttons"><button class="btn w-full" onclick="hideModal();mafiaTick()">END DAY</button><button class="btn red small w-full" onclick="hideModal()">WAIT</button></div>');
+}
+function mafiaTick(){
+  const lines=[];let income=0;const d=dm();
+  if(hasBiz('chop')){G.dirty+=600;lines.push('Chop shop: +$600 dirty')}
+  hoods().forEach(l=>{const t=G.terr[l.id];if(t.owner!=='you')return;
+    let inc=hoodIncome(l);
+    t.heat=Math.max(0,t.heat+Math.max(0,t.dealers-2)*4-(t.soldiers>0?6:3));
+    if(t.dealers>0){
+      if(ch(t.heat/200*(t.soldiers>0?.5:1)*d.rcmpM)){G.st.raids++;if(hasBiz('lawyer')){inc=0;lines.push('<span class="text-red">🚔 Raid in '+l.name+': lawyer kept the crew, lost the day\'s take</span>')}else{t.dealers--;inc=0;lines.push('<span class="text-red">🚔 Raid in '+l.name+': a dealer arrested, no income</span>')}}
+      else if(t.soldiers===0&&ch(.15)){inc=Math.round(inc*.7);lines.push('<span class="text-yellow">Skim in '+l.name+': dealers pocketed 30%</span>')}
+      else if(ch(.05)){t.dealers--;G.heat=Math.min(100,G.heat+15);lines.push('<span class="text-red">🐀 Snitch in '+l.name+': a dealer flipped, heat +15</span>')}
+    }
+    const hostileN=MF.adj[l.id].filter(n=>{const o=G.terr[n].owner;return o!=='you'&&o!=='none'&&G.gangs[o]&&G.gangs[o].status==='hostile'&&G.gangs[o].peace<=0});
+    if(hostileN.length&&ch(.25*d.mugM)){const att=rndI(1,4);const gid=G.terr[hostileN[0]].owner;
+      if(att>t.soldiers*1.2+rnd(0,1)){lines.push('<span class="text-red">🏍️ '+gangName(gid)+' took '+l.name+'! Crew there is gone.</span>');t.owner=gid;t.dealers=0;t.soldiers=att;G.st.lostHoods++;inc=0}
+      else{const lost=Math.min(t.soldiers,rndI(0,1));t.soldiers-=lost;G.st.fightsW++;lines.push('<span class="text-green">🏍️ Held '+l.name+' against '+gangName(gid)+(lost?' (-'+lost+' soldier)':'')+'</span>')}}
+    t.income=inc;income+=inc;
+  });
+  G.dirty+=income;G.lastIncome=income;if(income>0)lines.unshift('Crews brought in <span class="text-green">'+fmt(income)+'</span> dirty');
+  const up=crewUpkeep();
+  if(up>0){if(!spendDirtyFirst(up)){let short=up-G.dirty-G.cash;G.dirty=0;G.cash=0;let quit=0;
+      while(short>0){if(G.pool.dealers>0){G.pool.dealers--;short-=MF.upkeep.dealer}else if(G.pool.soldiers>0){G.pool.soldiers--;short-=MF.upkeep.soldier}else{const hh=myHoods().find(l=>G.terr[l.id].dealers>0||G.terr[l.id].soldiers>0);if(!hh)break;const t=G.terr[hh.id];if(t.dealers>0){t.dealers--;short-=MF.upkeep.dealer}else{t.soldiers--;short-=MF.upkeep.soldier}}quit++}
+      lines.push('<span class="text-red">Couldn\'t cover upkeep. '+quit+' crew walked.</span>')}
+    else lines.push('Upkeep paid: '+fmt(up))}
+  let decay=3;if(hasBiz('cop'))decay+=4;if(G.dirty>20000){decay-=3;lines.push('<span class="text-red">Sitting on '+fmt(G.dirty)+' dirty. People notice.</span>')}
+  G.heat=Math.max(0,G.heat-decay);
+  GANGS.forEach(g=>{const s=G.gangs[g.id];if(s.peace>0)s.peace--});
+  if(G.bankFrozen>0){G.bankFrozen--;if(G.bankFrozen===0)lines.push('<span class="text-cyan">Bank account unfrozen.</span>')}
+  G.attacked=false;
+  advDay();
+  lines.forEach(x=>addLog(x));
+  updateUI();
+  if(G.maxDays&&G.day>G.maxDays)return;
+  setTimeout(bossEvent,300);
+}
+function checkVictory(){if(G.mode==='mafia'&&myHoods().length>=11){setTimeout(()=>gameOver(false,'victory'),300);return true}return false}
+function bossEvent(){
+  if(checkVictory())return;
+  const hostile=GANGS.filter(g=>G.gangs[g.id].status==='hostile'&&G.gangs[g.id].peace<=0);
+  if(hostile.length&&ch(.2)){const g=hostile[rndI(0,hostile.length-1)];const guards=G.pool.soldiers;const p=cl(.4+.12*guards,.1,.95);playRCMP();
+    showModal('<h2>🔫 HIT SQUAD</h2><p>'+g.name+' sent shooters to your HQ. '+guards+' bodyguards on site.</p><div class="modal-buttons"><button class="btn w-full" onclick="hitFight('+p+')">FIGHT ('+Math.round(p*100)+'%)</button><button class="btn yellow w-full" onclick="hitFlee()">FLEE (50%, lose 20% clean)</button></div>');return}
+  if(G.heat>70&&ch(.3)){playRCMP();let lost=0;myHoods().forEach(l=>{const t=G.terr[l.id];if(t.dealers>0&&!hasBiz('lawyer')){t.dealers--;lost++}});G.heat=Math.max(0,G.heat-30);
+    addLog('<span class="text-red">🚔 RCMP task force hit every hood at once. '+lost+' dealers arrested. Heat -30.</span>');showModal('<h2>🚔 TASK FORCE</h2><p>Coordinated raids across the city. '+lost+' dealers arrested.</p><p style="font-size:14px;color:var(--text-dim)">The heat dropped afterwards. They got what they came for.</p><div class="modal-buttons"><button class="btn w-full" onclick="hideModal()">DAMN</button></div>');updateUI();return}
+  if(G.bank>50000&&G.heat>50&&G.bankFrozen===0&&ch(.25)){G.bankFrozen=3;addLog('<span class="text-red">🏦 Federal audit. Bank frozen for 3 days.</span>');showModal('<h2>🏦 AUDIT</h2><p>Someone flagged your deposits. The bank is frozen for 3 days.</p><div class="modal-buttons"><button class="btn w-full" onclick="hideModal()">GREAT</button></div>');updateUI();return}
+  if(G.day>=30&&G.debt>20000*dm().debtM*1.5&&ch(.3)){const hh=myHoods().find(l=>G.terr[l.id].dealers>0);if(hh){const t=G.terr[hh.id];const took=t.dealers;t.dealers=0;addLog('<span class="text-red">👔 The Family took your '+hh.name+' crew as a reminder. '+took+' dealers gone.</span>');showModal('<h2>👔 A REMINDER</h2><p>The Family doesn\'t like how the debt is growing. They took your '+hh.name+' crew.</p><div class="modal-buttons"><button class="btn w-full" onclick="hideModal()">UNDERSTOOD</button></div>');updateUI();return}}
+  if(!ch(.35))return;
+  const r=rndI(0,3);
+  if(r===0){G.pool.soldiers++;playUnlock();addLog('<span class="text-green">A kid from Joyce wants in. Free soldier.</span>');showModal('<h2>👥 RECRUIT</h2><p>Some kid who grew up on Joyce Avenue wants to work for you. No charge.</p><div class="modal-buttons"><button class="btn w-full" onclick="hideModal()">WELCOME</button></div>')}
+  else if(r===1){const bonus=Math.round(G.lastIncome*.5);G.dirty+=bonus;addLog('<span class="text-green">Welfare cheques dropped. Crews pulled an extra '+fmt(bonus)+'.</span>');showModal('<h2>📰 CHEQUE DAY</h2><p>Welfare cheques dropped across the city. Your crews pulled an extra '+fmt(bonus)+' dirty.</p><div class="modal-buttons"><button class="btn w-full" onclick="hideModal()">NICE</button></div>')}
+  else if(r===2){showModal('<h2>🤝 A TASTE</h2><p>The union boss at the port wants a taste. $5,000, or he makes noise.</p><div class="modal-buttons"><button class="btn w-full" onclick="unionPay()">PAY $5,000</button><button class="btn red w-full" onclick="unionNo()">TELL HIM NO</button></div>')}
+  else{G.heat=Math.min(100,G.heat+10);addLog('<span class="text-yellow">📰 Times &amp; Transcript ran a story on "Moncton\'s new crime boss". Heat +10.</span>');showModal('<h2>📰 FRONT PAGE</h2><p>The Times &amp; Transcript ran a piece on Moncton\'s new crime boss. No names, but everyone knows.</p><p class="text-red">Heat +10</p><div class="modal-buttons"><button class="btn w-full" onclick="hideModal()">NO COMMENT</button></div>')}
+  updateUI();
+}
+function unionPay(){hideModal();if(spendDirtyFirst(5000))addLog('Paid the union boss $5,000.');else{G.heat=Math.min(100,G.heat+20);addLog('<span class="text-red">Couldn\'t pay the union boss. Heat +20.</span>')}updateUI()}
+function unionNo(){hideModal();G.heat=Math.min(100,G.heat+20);addLog('<span class="text-red">Told the union boss to get lost. Heat +20.</span>');updateUI()}
+function hitFight(p){hideModal();if(ch(p)){G.rep+=20;G.st.fightsW++;const lost=Math.min(G.pool.soldiers,rndI(0,1));G.pool.soldiers-=lost;addLog('<span class="text-green">🔫 Bodyguards handled the hit squad. +20 respect'+(lost?', -'+lost+' soldier':'')+'</span>')}
+  else{const hp=rndI(30,50);G.health-=hp;G.st.fightsL++;addLog('<span class="text-red">🔫 They got through. -'+hp+' HP</span>');if(G.health<=0){G.health=0;updateUI();setTimeout(()=>gameOver(true),500);return}}
+  updateUI()}
+function hitFlee(){hideModal();if(ch(.5)){const l=Math.round(G.cash*.2);G.cash-=l;addLog('<span class="text-yellow">🔫 Got out the back. Lost '+fmt(l)+' clean in the rush.</span>')}else{const hp=rndI(20,40);G.health-=hp;addLog('<span class="text-red">🔫 Caught on the way out. -'+hp+' HP</span>');if(G.health<=0){G.health=0;updateUI();setTimeout(()=>gameOver(true),500);return}}updateUI()}
+function empireValue(){const crew=G.pool.dealers+G.pool.soldiers+myHoods().reduce((s,l)=>s+G.terr[l.id].dealers+G.terr[l.id].soldiers,0);return Math.round(G.cash+G.bank+G.dirty*.5-G.debt+myHoods().length*5000+crew*500+G.biz.reduce((s,id)=>s+MF.biz.find(b=>b.id===id).cost,0))}
+function mafiaGameOver(how){
+  let ev=empireValue();if(how==='victory')ev=Math.round(ev*1.25);
+  const days=Math.min(G.day,G.maxDays);
+  saveHS(G.name,ev,G.diff,days,'mafia',how==='died');
+  if(how==='died')playDeath();else{playVictory();if(how==='victory')setTimeout(playHighScore,800)}
+  let h;
+  if(how==='died')h='<h1>💀 WHACKED</h1><p style="font-size:18px;color:var(--red);text-align:center;margin-bottom:16px">'+G.name+' didn\'t see it coming. Day '+G.day+'.</p>';
+  else if(how==='victory')h='<h1 class="win">👑 MONCTON IS YOURS</h1><p style="font-size:18px;color:var(--green);text-align:center;margin-bottom:16px">'+G.name+' took every hood in '+days+' days. Score x1.25.</p>';
+  else h='<h1 class="win">👔 DAY 60</h1><p style="font-size:18px;color:var(--green);text-align:center;margin-bottom:16px">'+G.name+'\'s empire, valued.</p>';
+  h+='<div class="go-stats">'+gs('Empire Value',fmt(ev),ev<0)+gs('Clean Cash',fmt(G.cash))+gs('Bank',fmt(G.bank))+gs('Dirty Cash',fmt(G.dirty))+gs('Owed to the Family',fmt(G.debt),G.debt>0)+gs('Hoods',myHoods().length+'/11')+gs('Respect',Math.round(G.rep))+gs('Hoods Taken',G.st.taken)+gs('Hoods Lost',G.st.lostHoods)+gs('Fights Won / Lost',G.st.fightsW+' / '+G.st.fightsL)+gs('Raids Survived',G.st.raids)+gs('Cash Laundered',fmt(G.st.laundered))+gs('Businesses',G.biz.length)+(G.ally?gs('Ally',gangName(G.ally)):'')+gs('Days',days+'/'+G.maxDays)+'</div>'+goButtons('mafia');
+  $('gameover-screen').innerHTML=h;showScreen('gameover-screen');
 }
 
 // === SOUND SYSTEM ===
