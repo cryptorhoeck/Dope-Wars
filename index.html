@@ -145,6 +145,8 @@ html.low-hp .stat-val.health{animation:hpFlash 0.5s infinite}
   <button class="btn" onclick="newGame()">NEW GAME</button>
   <button class="btn yellow" onclick="showScores()">HIGH SCORES</button>
   <button class="btn small" style="border-color:var(--text-dim);color:var(--text-dim)" onclick="showHelp(null,'title-screen')">HOW TO PLAY</button>
+  <button class="btn yellow small" id="update-badge" style="display:none;animation:flicker 3s infinite" onclick="showUpdate()">⬆ UPDATE AVAILABLE</button>
+  <div id="version-line" style="font-size:13px;color:var(--text-dim);letter-spacing:1px"></div>
 </div>
 <div id="setup-screen" class="screen">
   <div class="setup-label">ENTER YOUR NAME</div>
@@ -315,6 +317,7 @@ const EVENTS=[
 ];
 const DIFF={easy:{cashM:1.5,debtM:.7,rcmpM:.6,mugM:.5,heatM:.7,int:.03,priceM:.85},normal:{cashM:1,debtM:1,rcmpM:1,mugM:1,heatM:1,int:.05,priceM:1},hard:{cashM:.7,debtM:1.3,rcmpM:1.5,mugM:1.5,heatM:1.4,int:.08,priceM:1.15}};
 
+const GAME_VERSION='2.1.3'; // bump with every release; keep android-app versionName in step
 let G={},market={},bankQV=0,loanQV=0,travelDest=null,selTier=1,selMode='classic';
 const MODE_DESC={classic:'The original. Pick a tier, beat the clock, bank the most cash.',career:'One long life. No clock. Climb from runner to kingpin, buy assets, retire rich or die trying.',mafia:'Run the city. Hire crews, take hoods, wash money, and fight the MCs. 60 days.'};
 function dayLeft(){return !G.maxDays||G.day<=G.maxDays}
@@ -329,7 +332,30 @@ function stashT(){return Object.values(G.stash).reduce((s,v)=>s+v,0)}
 function getLoc(id){return LOCATIONS.find(l=>l.id===id)}
 function dm(){return DIFF[G.diff]}
 
-function showScreen(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));$(id).classList.add('active');if(id==='title-screen'){updateTitleBtns();stopBeat();stopHeartbeat();playVinylCrackle()}else{stopVinylCrackle()}if(id==='gameover-screen'){stopBeat();stopHeartbeat()}}
+function showScreen(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));$(id).classList.add('active');if(id==='title-screen'){updateTitleBtns();stopBeat();stopHeartbeat();playVinylCrackle();checkForUpdate()}else{stopVinylCrackle()}if(id==='gameover-screen'){stopBeat();stopHeartbeat()}}
+// --- Version & update check ---
+// Asks the home server what the newest version is. Web players get a reload
+// that drops the service-worker cache; app players get the APK download.
+let updateInfo=null,lastUpdateCheck=0;
+function semverGt(a,b){const pa=String(a).split('.').map(Number),pb=String(b).split('.').map(Number);for(let i=0;i<3;i++){const x=pa[i]||0,y=pb[i]||0;if(x>y)return true;if(x<y)return false}return false}
+function checkForUpdate(force){
+  try{if(!/^https?:$/.test(location.protocol))return;const now=Date.now();if(!force&&now-lastUpdateCheck<5*60*1000)return;lastUpdateCheck=now;
+    fetch(leaderboardBase()+'/api/version',{cache:'no-store'}).then(r=>r.ok?r.json():null).then(v=>{if(!v||!v.game)return;
+      const native=!!leaderboardBase();const latest=native?(v.apk||v.game):v.game;
+      if(semverGt(latest,GAME_VERSION)){updateInfo={latest,native,notes:Array.isArray(v.notes)?v.notes:[],url:(native?LEADERBOARD_HOME:'')+(v.apkPath||'/downloads/latest.apk')}}else updateInfo=null;
+      renderUpdateBadge()}).catch(()=>{})}catch(e){}
+}
+function renderUpdateBadge(){const b=$('update-badge');if(!b)return;if(!updateInfo){b.style.display='none';return}b.style.display='';b.textContent='⬆ UPDATE AVAILABLE · v'+updateInfo.latest}
+function showUpdate(){const u=updateInfo;if(!u)return;
+  const notes=u.notes.length?'<ul style="text-align:left;font-size:14px;margin:0 0 10px 18px;color:var(--text)">'+u.notes.map(n=>'<li>'+n.replace(/</g,'&lt;')+'</li>').join('')+'</ul>':'';
+  if(u.native)showModal('<h2>⬆ v'+u.latest+' IS OUT</h2><p style="font-size:14px;color:var(--text-dim)">You have v'+GAME_VERSION+'. Download the new APK and install it over this one. Your saves and scores stay.</p>'+notes+'<div class="modal-buttons"><button class="btn w-full" onclick="openExternal(\''+u.url+'\')">DOWNLOAD APK</button><button class="btn red small w-full" onclick="hideModal()">LATER</button></div>');
+  else showModal('<h2>⬆ v'+u.latest+' IS OUT</h2><p style="font-size:14px;color:var(--text-dim)">You have v'+GAME_VERSION+'. Reload to get the new version. Your saves and scores stay.</p>'+notes+'<div class="modal-buttons"><button class="btn w-full" onclick="applyWebUpdate()">UPDATE NOW</button><button class="btn red small w-full" onclick="hideModal()">LATER</button></div>');
+}
+function openExternal(url){try{const w=window.open(url,'_blank');if(!w)location.href=url}catch(e){location.href=url}}
+function applyWebUpdate(){const done=()=>{try{location.reload()}catch(e){}};
+  try{const p=[];if(window.caches)p.push(caches.keys().then(ks=>Promise.all(ks.map(k=>caches.delete(k)))));
+    if(navigator.serviceWorker&&navigator.serviceWorker.getRegistrations)p.push(navigator.serviceWorker.getRegistrations().then(rs=>Promise.all(rs.map(r=>r.unregister()))));
+    Promise.all(p).then(done,done)}catch(e){done()}}
 function showModal(h){$('modal-content').innerHTML=h;$('modal').classList.add('active')}
 function hideModal(){$('modal').classList.remove('active')}
 function showQM(h){$('qty-modal-content').innerHTML=h;$('qty-modal').classList.add('active')}
@@ -1325,7 +1351,8 @@ function playVictory(){if(!sfxOk())return;ch1s.triggerAttackRelease('C4','2n');c
 function playHighScore(){if(!sfxOk())return;const notes=['C4','D4','E4','G4','A4','C5'];notes.forEach((note,i)=>{setTimeout(()=>{if(sfxOk())pluck.triggerAttack(note)},i*70)});setTimeout(()=>{if(!sfxOk())return;ch1s.triggerAttackRelease('C4','2n');ch2s.triggerAttackRelease('E4','2n');ch3s.triggerAttackRelease('G4','2n')},notes.length*70+50)}
 
 $('mute-btn').textContent=sfxMuted?'🔇':'🔊';
-updateTitleBtns();
+$('version-line').textContent='v'+GAME_VERSION+(leaderboardBase()?' · app':'');
+updateTitleBtns();checkForUpdate(true);
 if('serviceWorker' in navigator&&!leaderboardBase())navigator.serviceWorker.register('./sw.js').catch(()=>{}); // no SW inside the Android app: files are already local
 </script>
 </body>
