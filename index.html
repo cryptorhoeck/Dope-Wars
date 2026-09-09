@@ -49,7 +49,7 @@ body::after{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:r
 .drug-btn.sell{border-color:var(--red);color:var(--red)}.drug-btn:active{transform:scale(0.95)}.drug-btn:disabled{opacity:0.2;pointer-events:none}
 .travel-dest{padding:10px;margin-bottom:6px;background:var(--panel);border:1px solid var(--border);cursor:pointer;display:flex;justify-content:space-between;align-items:center}
 .travel-dest:active{background:var(--border)}.travel-dest .name{font-family:'Press Start 2P',monospace;font-size:9px}.travel-dest .vibe{font-size:14px;color:var(--text-dim)}.travel-dest.current{border-color:var(--yellow);opacity:0.4;pointer-events:none}
-.method-btn{display:flex;justify-content:space-between;align-items:center;padding:12px;margin-bottom:6px;background:var(--panel);border:1px solid var(--border);cursor:pointer;font-family:'VT323',monospace;font-size:18px;color:var(--text)}
+.method-btn{display:flex;width:100%;justify-content:space-between;align-items:center;padding:12px;margin-bottom:6px;background:var(--panel);border:1px solid var(--border);cursor:pointer;font-family:'VT323',monospace;font-size:18px;color:var(--text);text-align:left}
 .method-btn:active{background:var(--border)}.method-btn .cost{color:var(--green)}.method-btn .risk{font-size:14px;color:var(--text-dim)}.method-btn:disabled{opacity:0.3;pointer-events:none}
 .modal-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.85);z-index:100;justify-content:center;align-items:center;padding:20px}
 .modal-overlay.active{display:flex}.modal{background:var(--panel);border:2px solid var(--green);padding:20px;max-width:340px;width:100%;max-height:80vh;overflow-y:auto}
@@ -334,7 +334,7 @@ const EVENTS=[
 ];
 const DIFF={easy:{cashM:1.5,debtM:.7,rcmpM:.6,mugM:.5,heatM:.7,int:.03,priceM:.85},normal:{cashM:1,debtM:1,rcmpM:1,mugM:1,heatM:1,int:.05,priceM:1},hard:{cashM:.7,debtM:1.3,rcmpM:1.5,mugM:1.5,heatM:1.4,int:.08,priceM:1.15}};
 
-const GAME_VERSION='2.2.0'; // bump with every release; keep android-app versionName in step
+const GAME_VERSION='2.2.1'; // bump with every release; keep android-app versionName in step
 let G={},market={},bankQV=0,loanQV=0,travelDest=null,selTier=1,selMode='classic';
 const MODE_DESC={classic:'The original. Pick a tier, beat the clock, bank the most cash.',career:'One long life. No clock. Climb from runner to kingpin, buy assets, retire rich or die trying.',mafia:'Run the city. Hire crews, take hoods, wash money, and fight the MCs. 60 days.'};
 function dayLeft(){return !G.maxDays||G.day<=G.maxDays}
@@ -565,12 +565,21 @@ function showTravel(){
       if(allies.includes(loc.id))gangTag=' <span style="font-size:10px;color:var(--green)">🏍️ ALLY</span>';
       else if(eterr.includes(loc.id))gangTag=' <span style="font-size:10px;color:var(--red)">⚠️ HOSTILE</span>'}
     const sc=G.scout&&G.scout[loc.id]&&G.scout[loc.id].day===G.day+1?G.scout[loc.id].market:null;
-    let call='';if(!loc.isShop&&!cur){if(sc)call='<span style="font-size:11px;color:var(--cyan)">📞 known</span>';else call='<button class="call-btn" onclick="event.stopPropagation();callAhead(\''+loc.id+'\')" '+(calls>0&&G.cash>=callCost()?'':'disabled')+'>📞</button>'}
-    h+='<div class="travel-dest '+(cur?'current':'')+'" onclick="selDest(\''+loc.id+'\')" style="flex-wrap:wrap"><div><div class="name">'+loc.name+st+gangTag+'</div><div class="vibe">'+loc.vibe+'</div></div><div style="font-size:13px;color:var(--text-dim);display:flex;align-items:center">'+(loc.isShop?'🛒':'💊')+call+'</div>';
+    let call='';if(!loc.isShop&&!cur){if(sc)call='<span style="font-size:11px;color:var(--cyan)">📞 known</span>';else call='<button class="call-btn" data-call="'+loc.id+'" '+(calls>0&&G.cash>=callCost()?'':'disabled')+'>📞</button>'}
+    h+='<div class="travel-dest '+(cur?'current':'')+'" data-dest="'+loc.id+'" style="flex-wrap:wrap"><div><div class="name">'+loc.name+st+gangTag+'</div><div class="vibe">'+loc.vibe+'</div></div><div style="font-size:13px;color:var(--text-dim);display:flex;align-items:center">'+(loc.isShop?'🛒':'💊')+call+'</div>';
     if(sc)h+='<div class="scouted" style="width:100%">Tomorrow: '+scoutLine(sc)+'</div>';
     h+='</div>'});
   $('travel-phase1').innerHTML=h;$('travel-phase1').style.display='block';$('travel-phase2').style.display='none';showScreen('travel-screen');
 }
+// One delegated handler for the destination list: the 📞 button must never
+// fall through to the card underneath it (inline stopPropagation was unreliable
+// in the Android WebView).
+$('travel-phase1').addEventListener('click',function(e){
+  const cb=e.target.closest('.call-btn');
+  if(cb){e.stopPropagation();e.preventDefault();if(cb.dataset.call&&!cb.disabled)callAhead(cb.dataset.call);return}
+  const card=e.target.closest('.travel-dest');
+  if(card&&card.dataset.dest&&!card.classList.contains('current'))selDest(card.dataset.dest);
+});
 function scoutLine(mk){const parts=[];tierDrugs().forEach(d=>{const m=mk[d.id];if(!m)return;const cls=m.price<=d.min*.9?'text-green':m.price>=d.max*1.1?'text-red':'';parts.push('<span class="'+cls+'">'+d.name+' '+fmt(m.price)+'</span>')});return parts.length?parts.join(' · '):'nothing on offer'}
 function selDest(id){
   travelDest=id;let h='<div style="padding:0 0 8px;font-size:14px;color:var(--text-dim)">Travel to '+getLoc(id).name+':</div>';

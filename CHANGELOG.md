@@ -4,6 +4,10 @@ The version number lives in `index.html` as `GAME_VERSION` and is shown on the
 title screen. The Android APK's `versionName` matches it. The newest section
 here is what the game and the landing page show as "what's new".
 
+## v2.2.1 — 2026-09-09
+- Fix: tapping 📞 on the Travel screen in the Android app opened the travel menu instead of placing the call.
+- Travel-method buttons now span the full width.
+
 ## v2.2.0 — 2026-09-09
 - Dealer's Notebook: every price you see is written down. View it by drug (cheapest and dearest place seen for each) or by hood. Old notes fade. Button on the action grid and on the Travel screen.
 - Call Ahead: on the Travel screen, tap 📞 next to a hood to see the exact prices waiting there tomorrow. $100 (more in higher tiers), two calls a day. Free and unlimited with Career's Burner Phones.
