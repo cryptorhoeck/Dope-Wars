@@ -130,6 +130,18 @@ html.low-hp .stat-val.health{animation:hpFlash 0.5s infinite}
 .help .k{color:var(--green)}.help .w{color:var(--red)}.help .c{color:var(--cyan)}.help .o{color:var(--orange)}
 .help .step{display:grid;grid-template-columns:26px 1fr;gap:6px;margin-bottom:8px}.help .step b{font-family:'Press Start 2P',monospace;font-size:10px;color:var(--green)}
 .hint{font-size:13px;color:var(--text-dim);padding:0 0 8px;line-height:1.3}
+.nb-card{padding:8px 10px;margin-bottom:6px;background:var(--panel);border:1px solid var(--border)}
+.nb-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px}
+.nb-name{font-family:'Press Start 2P',monospace;font-size:8px;color:var(--yellow)}
+.nb-when{font-size:12px;color:var(--text-dim)}
+.nb-grid{display:grid;grid-template-columns:1fr 1fr;gap:2px 12px;font-size:15px}
+.nb-row{display:flex;justify-content:space-between}.nb-row .d{color:var(--text-dim)}.nb-row .p{color:var(--text)}
+.nb-row .p.lo{color:var(--green)}.nb-row .p.hi{color:var(--red)}.nb-old{opacity:.55}
+.nb-drug{display:grid;grid-template-columns:1fr auto;gap:2px 8px;padding:6px 0;border-bottom:1px solid var(--border);font-size:14px}
+.nb-drug .n{font-family:'Press Start 2P',monospace;font-size:8px;color:var(--text);grid-column:1/3;margin-bottom:2px}
+.call-btn{background:none;border:1px solid var(--cyan);color:var(--cyan);font-family:'VT323',monospace;font-size:14px;padding:2px 8px;cursor:pointer;margin-left:6px;white-space:nowrap}
+.call-btn:disabled{opacity:.3;pointer-events:none}
+.scouted{grid-column:1/3;font-size:13px;color:var(--cyan);margin-top:4px;line-height:1.35}
 </style>
 <script src="./lib/Tone.js"></script>
 </head>
@@ -262,6 +274,11 @@ html.low-hp .stat-val.health{animation:hpFlash 0.5s infinite}
   <div class="screen-header"><button class="back-btn" onclick="showScreen('game-screen')">←</button><span class="screen-title">CREW &amp; BUSINESS</span></div>
   <div style="flex:1;overflow-y:auto;padding:8px" id="crew-list"></div>
 </div>
+<div id="notebook-screen" class="screen">
+  <div class="screen-header"><button class="back-btn" onclick="showScreen(nbReturn)">←</button><span class="screen-title">📓 NOTEBOOK</span></div>
+  <div class="score-tabs"><button class="score-tab sel" onclick="showNotebook('drug')">BY DRUG</button><button class="score-tab" onclick="showNotebook('hood')">BY HOOD</button></div>
+  <div style="flex:1;overflow-y:auto;padding:8px" id="notebook-body"></div>
+</div>
 <div id="help-screen" class="screen">
   <div class="screen-header"><button class="back-btn" onclick="helpBack()">←</button><span class="screen-title">HOW TO PLAY</span></div>
   <div class="score-tabs"><button class="score-tab" onclick="showHelp('classic')">CLASSIC</button><button class="score-tab" onclick="showHelp('career')">CAREER</button><button class="score-tab" onclick="showHelp('mafia')">MAFIA</button></div>
@@ -317,7 +334,7 @@ const EVENTS=[
 ];
 const DIFF={easy:{cashM:1.5,debtM:.7,rcmpM:.6,mugM:.5,heatM:.7,int:.03,priceM:.85},normal:{cashM:1,debtM:1,rcmpM:1,mugM:1,heatM:1,int:.05,priceM:1},hard:{cashM:.7,debtM:1.3,rcmpM:1.5,mugM:1.5,heatM:1.4,int:.08,priceM:1.15}};
 
-const GAME_VERSION='2.1.3'; // bump with every release; keep android-app versionName in step
+const GAME_VERSION='2.2.0'; // bump with every release; keep android-app versionName in step
 let G={},market={},bankQV=0,loanQV=0,travelDest=null,selTier=1,selMode='classic';
 const MODE_DESC={classic:'The original. Pick a tier, beat the clock, bank the most cash.',career:'One long life. No clock. Climb from runner to kingpin, buy assets, retire rich or die trying.',mafia:'Run the city. Hire crews, take hoods, wash money, and fight the MCs. 60 days.'};
 function dayLeft(){return !G.maxDays||G.day<=G.maxDays}
@@ -383,7 +400,7 @@ function renderActions(){
   if(G.mode==='mafia'){
     g.innerHTML='<button class="action-btn" onclick="showEmpire()"><span class="icon">🏙️</span>Empire</button><button class="action-btn" onclick="showCrew()"><span class="icon">👥</span>Crew &amp; Biz</button><button class="action-btn" onclick="showSitdowns()"><span class="icon">🏍️</span>Sit-Downs</button><button class="action-btn" onclick="showLaunder()"><span class="icon">💵</span>Launder</button><button class="action-btn" onclick="showBank()"><span class="icon">🏦</span>Bank</button><button class="action-btn" onclick="showLoan()"><span class="icon">👔</span>The Family</button><button class="action-btn" onclick="showHeal()"><span class="icon">🩹</span>Heal</button><button class="action-btn" onclick="exitMenu()"><span class="icon">🚪</span>Menu</button><button class="action-btn" onclick="saveGame(true)"><span class="icon">💾</span>Save</button><button class="action-btn" style="border-color:var(--orange);color:var(--orange)" onclick="endDay()"><span class="icon">⏭️</span>End Day</button>';
   }else{
-    g.innerHTML='<button class="action-btn" onclick="showTravel()"><span class="icon">🚶</span>Travel</button><button class="action-btn" id="btn-market" onclick="showMarket()"><span class="icon">💊</span>Buy / Sell</button><button class="action-btn" onclick="showBank()"><span class="icon">🏦</span>Bank</button><button class="action-btn" onclick="showLoan()"><span class="icon">🦈</span>Loan Shark</button><button class="action-btn" onclick="showHeal()"><span class="icon">🩹</span>Heal</button><button class="action-btn" onclick="exitMenu()"><span class="icon">🚪</span>Menu</button><button class="action-btn" onclick="showStash()"><span class="icon">📦</span>Stash</button><button class="action-btn" onclick="layLow()"><span class="icon">😎</span>Lay Low</button><button class="action-btn" onclick="saveGame(true)"><span class="icon">💾</span>Save</button><button class="action-btn" id="btn-gangs" onclick="showGangs()" style="display:none"><span class="icon">🏍️</span>Gangs</button>';
+    g.innerHTML='<button class="action-btn" onclick="showTravel()"><span class="icon">🚶</span>Travel</button><button class="action-btn" id="btn-market" onclick="showMarket()"><span class="icon">💊</span>Buy / Sell</button><button class="action-btn" onclick="showBank()"><span class="icon">🏦</span>Bank</button><button class="action-btn" onclick="showLoan()"><span class="icon">🦈</span>Loan Shark</button><button class="action-btn" onclick="showHeal()"><span class="icon">🩹</span>Heal</button><button class="action-btn" onclick="showNotebook(null,\'game-screen\')"><span class="icon">📓</span>Notebook</button><button class="action-btn" onclick="showStash()"><span class="icon">📦</span>Stash</button><button class="action-btn" onclick="layLow()"><span class="icon">😎</span>Lay Low</button><button class="action-btn" onclick="saveGame(true)"><span class="icon">💾</span>Save</button><button class="action-btn" onclick="exitMenu()"><span class="icon">🚪</span>Menu</button><button class="action-btn" id="btn-gangs" onclick="showGangs()" style="display:none"><span class="icon">🏍️</span>Gangs</button>';
   }
 }
 function addLog(msg){const log=$('event-log'),p=document.createElement('div');p.style.cssText='margin-bottom:4px;border-bottom:1px solid #1a1a1a;padding-bottom:4px';p.innerHTML='<span style="color:var(--dim-green)">[Day '+G.day+']</span> '+msg;log.prepend(p);while(log.children.length>50)log.removeChild(log.lastChild)}
@@ -419,8 +436,9 @@ function reallyStartGame(){
     freeT:false,bus2x:false,tier:tier,unlockedTier:getUnlockedTier(),maxTier:3,
     gang:null,gangRep:0,enemies:[],gangMission:null,gangMissionDays:0,
     season:1,seasonFx:null,seasonFxDays:0,assets:[],nextCollector:30,seasonEarned:0,seasonDeals:0,
-    st:{deals:0,bigDeal:0,bought:0,sold:0,drugSold:{},drugRev:{},rcmp:0,rcmpW:0,rcmpR:0,mugs:0,visits:{},earned:0,rivals:0,hookups:0}};
-  market=genMarket();$('event-log').innerHTML='';renderActions();
+    notes:{},scout:{},callsToday:0,
+    st:{deals:0,bigDeal:0,bought:0,sold:0,drugSold:{},drugRev:{},rcmp:0,rcmpW:0,rcmpR:0,mugs:0,visits:{},earned:0,rivals:0,hookups:0,calls:0}};
+  market=arriveMarket();$('event-log').innerHTML='';renderActions();
   const tn=tier===3?'KINGPIN':tier===2?'SHOT CALLER':'STREET RUNNER';
   if(mode==='career'){addLog('Welcome to Moncton, '+G.name+'. No clock this time. Build a life, or lose one.');addLog('Rep unlocks the city as you go. Retire once you\'re debt-free after day 30.')}
   else addLog('Welcome to Moncton, '+G.name+'. '+mdays+' days to make your fortune. ['+tn+']');
@@ -431,9 +449,9 @@ function reallyStartGame(){
 
 function tierDrugs(){return DRUGS.filter(d=>!d.tier||d.tier<=G.tier)}
 function tierLocs(){return LOCATIONS.filter(l=>!l.tier||l.tier<=G.tier)}
-function genMarket(){
-  const loc=getLoc(G.location);if(loc.isShop)return {};
-  const mk={},d=dm();let pm0=gangPriceMod();
+function genMarket(locId){
+  const loc=getLoc(locId||G.location);if(loc.isShop)return {};
+  const mk={},d=dm();let pm0=gangPriceMod(loc.id);
   const sfx=(G.mode==='career'&&G.seasonFxDays>0)?SEASON_FX[G.seasonFx]:null;
   tierDrugs().forEach(drug=>{
     if(ch(.15+(1-loc.supplyMod)*.3))return;
@@ -447,10 +465,16 @@ function genMarket(){
   });
   return mk;
 }
-function gangPriceMod(){
+// Market for where you are right now. Uses tomorrow's scouted prices if you called ahead.
+function arriveMarket(){
+  const s=G.scout&&G.scout[G.location];
+  if(s&&s.day===G.day){delete G.scout[G.location];recordNotes(G.location,s.market,'seen');return s.market}
+  const mk=genMarket();recordNotes(G.location,mk,'seen');return mk;
+}
+function gangPriceMod(locId){
   if(!G.gang||G.tier<3)return 1;
   const g=GANGS.find(g=>g.id===G.gang);if(!g)return 1;
-  const loc=getLoc(G.location);
+  const loc=getLoc(locId||G.location);
   // allied territory
   const allies=GANGS.filter(x=>x.side===g.side).map(x=>x.territory);
   if(allies.includes(loc.id))return .8;
@@ -533,14 +557,21 @@ function postDayChain(){
 function showTravel(){
   travelDest=null;const showScout=G.diff!=='hard';
   let h='<div style="padding:4px 0 8px;font-size:14px;color:var(--text-dim)">Choose destination:</div>';
+  const calls=callsLeft();
+  h='<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0 8px;font-size:14px;color:var(--text-dim)"><span>Choose destination:</span><span>📞 '+(calls===Infinity?'free calls':calls+' call'+(calls===1?'':'s')+' left · '+fmt(callCost()))+' <button class="call-btn" onclick="showNotebook(null,\'travel-screen\')">📓</button></span></div>';
   tierLocs().forEach(loc=>{const cur=loc.id===G.location;let st='',gangTag='';
     if(showScout&&!loc.isShop&&!cur&&invT()>0)st=getScoutTag(loc);
     if(G.tier>=3&&G.gang){const allies=GANGS.filter(x=>x.side===GANGS.find(g=>g.id===G.gang).side).map(x=>x.territory);const eterr=GANGS.filter(x=>G.enemies.includes(x.id)).map(x=>x.territory);
       if(allies.includes(loc.id))gangTag=' <span style="font-size:10px;color:var(--green)">🏍️ ALLY</span>';
       else if(eterr.includes(loc.id))gangTag=' <span style="font-size:10px;color:var(--red)">⚠️ HOSTILE</span>'}
-    h+='<div class="travel-dest '+(cur?'current':'')+'" onclick="selDest(\''+loc.id+'\')"><div><div class="name">'+loc.name+st+gangTag+'</div><div class="vibe">'+loc.vibe+'</div></div><div style="font-size:13px;color:var(--text-dim)">'+(loc.isShop?'🛒':'💊')+'</div></div>'});
+    const sc=G.scout&&G.scout[loc.id]&&G.scout[loc.id].day===G.day+1?G.scout[loc.id].market:null;
+    let call='';if(!loc.isShop&&!cur){if(sc)call='<span style="font-size:11px;color:var(--cyan)">📞 known</span>';else call='<button class="call-btn" onclick="event.stopPropagation();callAhead(\''+loc.id+'\')" '+(calls>0&&G.cash>=callCost()?'':'disabled')+'>📞</button>'}
+    h+='<div class="travel-dest '+(cur?'current':'')+'" onclick="selDest(\''+loc.id+'\')" style="flex-wrap:wrap"><div><div class="name">'+loc.name+st+gangTag+'</div><div class="vibe">'+loc.vibe+'</div></div><div style="font-size:13px;color:var(--text-dim);display:flex;align-items:center">'+(loc.isShop?'🛒':'💊')+call+'</div>';
+    if(sc)h+='<div class="scouted" style="width:100%">Tomorrow: '+scoutLine(sc)+'</div>';
+    h+='</div>'});
   $('travel-phase1').innerHTML=h;$('travel-phase1').style.display='block';$('travel-phase2').style.display='none';showScreen('travel-screen');
 }
+function scoutLine(mk){const parts=[];tierDrugs().forEach(d=>{const m=mk[d.id];if(!m)return;const cls=m.price<=d.min*.9?'text-green':m.price>=d.max*1.1?'text-red':'';parts.push('<span class="'+cls+'">'+d.name+' '+fmt(m.price)+'</span>')});return parts.length?parts.join(' · '):'nothing on offer'}
 function selDest(id){
   travelDest=id;let h='<div style="padding:0 0 8px;font-size:14px;color:var(--text-dim)">Travel to '+getLoc(id).name+':</div>';
   TRAVEL.forEach(m=>{let c=m.cost;if(G.freeT&&m.id!=='walk')c=0;if(G.bus2x&&m.id==='bus')c*=2;
@@ -567,7 +598,7 @@ function doTravel(mid){
   if(!evt&&G.tier>=3&&G.enemies.length>0){const eterr=GANGS.filter(x=>G.enemies.includes(x.id)).map(x=>x.territory);
     if(eterr.includes(travelDest)&&ch(.2))evt='ambush'}
   addLog('Traveled to '+getLoc(travelDest).name+' via '+m.name+(c>0?' ('+fmt(c)+')':''));
-  advDay();market=genMarket();showScreen('game-screen');updateUI();
+  advDay();market=arriveMarket();showScreen('game-screen');updateUI();
   if(evt==='rcmp')setTimeout(rcmpEnc,300);else if(evt==='mug')setTimeout(mugEvent,300);else if(evt==='rival')setTimeout(rivalEnc,300);else if(evt==='ambush')setTimeout(gangAmbush,300);else setTimeout(postDayChain,300);
 }
 
@@ -581,6 +612,7 @@ function advDay(){
     careerUpkeep();
   }
   G.heat=Math.max(0,G.heat-decay);
+  G.callsToday=0;
   saveGame();
   if(G.maxDays&&G.day>G.maxDays)setTimeout(()=>gameOver(false),500);
 }
@@ -590,7 +622,7 @@ function layLow(){
   G.heat=Math.max(0,G.heat-drop);
   if(safe&&G.health<G.maxHP){G.health=Math.min(G.maxHP,G.health+20);addLog('Laid low at the safehouse. Heat -'+Math.round(drop)+', +20 HP')}
   else addLog('Laid low for the day. Heat -'+Math.round(drop));
-  market=genMarket();advDay();updateUI();
+  advDay();market=arriveMarket();updateUI();
   postDayChain();
 }
 
@@ -738,6 +770,7 @@ function gameOver(died,how){
   if(G.gang)h+=gs('Gang',GANGS.find(g=>g.id===G.gang).name);
   if(G.st.rivals)h+=gs('Rival Encounters',G.st.rivals);
   if(G.st.hookups)h+=gs('Hookups',G.st.hookups);
+  if(G.st.calls)h+=gs('Calls Ahead',G.st.calls);
   if(Object.keys(G.st.drugSold).length>0){h+='<div style="padding:12px 0 4px;font-family:\'Press Start 2P\',monospace;font-size:8px;color:var(--yellow)">DRUGS SOLD</div>';
     Object.entries(G.st.drugSold).forEach(([id,q])=>{h+=gs(DRUGS.find(d=>d.id===id).name,q+' / '+fmt(G.st.drugRev[id]||0))})}
   h+='</div>'+goButtons(mode);
@@ -783,6 +816,7 @@ function continueGame(mode){
   if(!G.gangMission)G.gangMission=null;if(!G.gangMissionDays)G.gangMissionDays=0;
   if(!G.st.rivals)G.st.rivals=0;if(!G.st.hookups)G.st.hookups=0;
   if(G.mode==='career'){if(!G.season)G.season=1;if(!G.assets)G.assets=[];if(!G.nextCollector)G.nextCollector=30;if(G.seasonFxDays===undefined)G.seasonFxDays=0;if(!G.seasonEarned)G.seasonEarned=0;if(!G.seasonDeals)G.seasonDeals=0}
+  if(!G.notes)G.notes={};if(!G.scout)G.scout={};if(!G.callsToday)G.callsToday=0;if(!G.st.calls)G.st.calls=0;
   $('event-log').innerHTML='';renderActions();
   addLog('Welcome back, '+G.name+'. Day '+G.day+(G.maxDays?'/'+G.maxDays:'')+'.');
   updateUI();showScreen('game-screen');playBeat();
@@ -976,6 +1010,46 @@ function rcmpTaskForce(){
   addLog('<span class="text-red">🚔 RCMP task force set up specifically to catch you, '+G.name+'!</span>');
 }
 
+// === DEALER'S NOTEBOOK & CALL AHEAD ===
+// Every price you see gets written down: G.notes[hood][drug] = {price, day, src}.
+// Call Ahead buys tomorrow's real prices for one hood (G.scout[hood] = {day, market}),
+// which arriveMarket() then uses instead of rolling new ones.
+let nbReturn='game-screen',nbView='drug';
+function recordNotes(locId,mk,src){if(!G.notes)G.notes={};const n=G.notes[locId]=G.notes[locId]||{};Object.keys(mk).forEach(id=>{n[id]={price:mk[id].price,day:G.day,src:src||'seen'}});if(mk&&Object.keys(mk).length===0)n._empty={day:G.day}}
+function callCost(){return G.mode==='career'&&hasAsset('burner')?0:100+50*((G.tier||1)-1)}
+function callsLeft(){if(G.mode==='career'&&hasAsset('burner'))return Infinity;return Math.max(0,2-(G.callsToday||0))}
+function callAhead(locId){
+  const loc=getLoc(locId);if(!loc||loc.isShop||locId===G.location)return;
+  const cost=callCost();if(callsLeft()<=0||G.cash<cost)return;
+  if(!G.scout)G.scout={};
+  G.cash-=cost;G.callsToday=(G.callsToday||0)+1;G.st.calls=(G.st.calls||0)+1;
+  const mk=genMarket(locId);G.scout[locId]={day:G.day+1,market:mk};
+  const n=G.notes[locId]=G.notes[locId]||{};Object.keys(mk).forEach(id=>{n[id]={price:mk[id].price,day:G.day+1,src:'call'}});
+  playTipSnd();addLog('<span class="text-cyan">📞 Called ahead to '+loc.name+(cost?' ('+fmt(cost)+')':'')+'. Tomorrow\'s prices are in the notebook.</span>');
+  updateUI();showTravel();
+}
+function showNotebook(view,ret){
+  if(ret)nbReturn=ret;if(view)nbView=view;
+  document.querySelectorAll('#notebook-screen .score-tab').forEach((t,i)=>t.classList.toggle('sel',['drug','hood'][i]===nbView));
+  const notes=G.notes||{};const hoods=Object.keys(notes).filter(k=>Object.keys(notes[k]).some(x=>x!=='_empty'));
+  let h='';
+  if(hoods.length===0)h='<div style="text-align:center;padding:40px 20px;color:var(--text-dim)">Nothing written down yet.<br><br>Every market you look at and every hood you call ahead to gets noted here.</div>';
+  else if(nbView==='hood'){
+    tierLocs().filter(l=>!l.isShop&&notes[l.id]).forEach(l=>{const n=notes[l.id];const days=Object.values(n).map(e=>e.day);const last=Math.max(...days);const old=G.day-last>7;
+      h+='<div class="nb-card'+(old?' nb-old':'')+'"><div class="nb-head"><span class="nb-name">'+l.name+'</span><span class="nb-when">'+(last>G.day?'📞 tomorrow':'day '+last+(old?' · old':''))+'</span></div><div class="nb-grid">';
+      tierDrugs().forEach(d=>{const e=n[d.id];if(!e)return;const cls=e.price<=d.min*.9?'lo':e.price>=d.max*1.1?'hi':'';h+='<div class="nb-row"><span class="d">'+d.name+(e.src==='call'?' 📞':'')+'</span><span class="p '+cls+'">'+fmt(e.price)+'</span></div>'});
+      h+='</div></div>'});
+  }else{
+    h+='<div class="hint">Cheapest and dearest place you\'ve seen each drug. Old notes fade. 📞 = called ahead.</div>';
+    tierDrugs().forEach(d=>{let lo=null,hi=null;hoods.forEach(k=>{const e=notes[k][d.id];if(!e)return;if(!lo||e.price<lo.price)lo={...e,loc:k};if(!hi||e.price>hi.price)hi={...e,loc:k}});
+      if(!lo)return;const age=e=>e.day>G.day?'📞':'d'+e.day;const dim=e=>G.day-e.day>7?' nb-old':'';
+      h+='<div class="nb-drug"><span class="n">'+d.name+'</span><span class="text-green'+dim(lo)+'">▼ '+getLoc(lo.loc).name+'</span><span class="text-green'+dim(lo)+'">'+fmt(lo.price)+' <span style="color:var(--text-dim);font-size:11px">'+age(lo)+'</span></span>';
+      if(hi.loc!==lo.loc||hi.price!==lo.price)h+='<span class="text-red'+dim(hi)+'">▲ '+getLoc(hi.loc).name+'</span><span class="text-red'+dim(hi)+'">'+fmt(hi.price)+' <span style="color:var(--text-dim);font-size:11px">'+age(hi)+'</span></span>';
+      h+='</div>'});
+  }
+  $('notebook-body').innerHTML=h;showScreen('notebook-screen');
+}
+
 // === HOW TO PLAY ===
 let helpReturn='title-screen';
 const HELP={
@@ -983,11 +1057,12 @@ classic:'<h3>THE GOAL</h3><p>End the last day with the most <span class="k">net 
 +'<h3>THE LOOP</h3><div class="step"><b>1</b><span><span class="k">Buy / Sell</span> in the hood you\'re in. Prices differ everywhere.</span></div><div class="step"><b>2</b><span><span class="k">Travel</span> somewhere the price is higher and sell. Every trip costs one day.</span></div><div class="step"><b>3</b><span>Repeat. Watch heat, health and the loan shark.</span></div>'
 +'<h3>MONEY</h3><ul><li>You start owing the <span class="w">loan shark $5,500</span> and the interest compounds every day. Pay it down early; it is the biggest drain in the game.</li><li>The <span class="c">Bank</span> pays nothing but muggers can\'t touch it. Bank your profit before walking into a rough hood.</li><li>Cheap product: crack in <span class="o">Ackmin Court</span>, meth in <span class="o">Cornhill</span>. Rich buyers: <span class="o">Lewisville</span>, later <span class="o">Fox Creek</span> and <span class="o">Kingswood</span>.</li><li>On Easy and Normal the travel screen shows scout tags (🔥 HOT, 💰 DEAL) and the market shows profit vs what you paid.</li></ul>'
 +'<h3>DANGER</h3><ul><li><span class="w">Heat</span> builds every time you sell. High heat means RCMP stops. <span class="k">Lay Low</span> burns a day to drop it. A cab has no travel risk.</li><li>Muggings happen in dangerous hoods. Carry less cash there.</li><li>Weapons and bigger bags are at <span class="o">Champlain Mall</span>, the only shop. Weapons raise your odds when you fight RCMP.</li><li><span class="w">0 HP is game over.</span> Corner stores heal cheap, the hospital heals fully.</li></ul>'
++'<h3>NOTEBOOK &amp; CALLING AHEAD</h3><ul><li>Every price you see is written in your <span class="k">📓 Notebook</span>. BY DRUG shows the cheapest and dearest place you\'ve seen each one; BY HOOD shows what each hood had. Prices roll every visit, but hoods have habits: old notes are still a decent guide.</li><li>On the Travel screen, <span class="c">📞</span> next to a hood <span class="k">calls ahead</span>: for $100 you see the exact prices that will be waiting there tomorrow. Two calls a day. Cheaper than a wasted trip.</li></ul>'
 +'<h3>REP</h3><p>Every sale builds rep. 150 unlocks the stash house, 300 unlocks Tier 2, 600 unlocks Tier 3 with gangs, rival dealers and the Kingpin drugs.</p>',
 career:'<h3>THE IDEA</h3><p>One dealer, one life, <span class="k">no clock</span>. You climb from runner to kingpin in a single game and stop when you choose. Die and the career is over for good.</p>'
 +'<h3>HOW IT ENDS</h3><ul><li><span class="k">Retire</span> from the Menu any time after day 30 with <span class="k">zero debt</span>. Score is cash + bank + half of what you paid for assets.</li><li><span class="w">Death is permanent.</span> The score still counts, tagged "died".</li></ul>'
 +'<h3>WHAT REPLACES THE CLOCK</h3><ul><li><span class="w">Collectors.</span> From day 30, while you owe the shark, they come every 10 days: pay 25% of the debt or take a beating and lose product. <span class="k">Kill the debt first.</span></li><li><span class="w">Notoriety.</span> Heat decays slower the bigger you get: two thirds at 300 rep, less than half at 600. Lay Low more as you climb.</li><li><span class="c">Seasons.</span> Every 30 days a season ends. You get a summary, prices reshuffle, and a 5-day event hits: a crackdown, a drought, a flood of cheap product, a festival for party drugs, or quiet streets. Read it and adapt.</li></ul>'
-+'<h3>ASSETS (Champlain Mall)</h3><ul><li><span class="o">Burner Phones</span> ($2.5k): a dealer tip every day. Buy first.</li><li><span class="o">Runner</span> (+150 carry, $150/day): worth it once you\'re moving big volume.</li><li><span class="o">Safehouse</span> ($12k): Lay Low drops twice the heat and heals. Buy when heat becomes the problem.</li><li><span class="o">Lawyer</span> ($20k): RCMP losses halved.</li><li><span class="o">Laundromat</span> ($30k): $400 a day, forever, and it cools you down.</li><li><span class="o">Cop on the Payroll</span> ($45k, $300/day): half the RCMP stops.</li></ul><p>Assets with upkeep quit if you can\'t pay. Keep a cushion.</p>'
++'<h3>ASSETS (Champlain Mall)</h3><ul><li><span class="o">Burner Phones</span> ($2.5k): a dealer tip every day, and calling ahead is free and unlimited. Buy first.</li><li><span class="o">Runner</span> (+150 carry, $150/day): worth it once you\'re moving big volume.</li><li><span class="o">Safehouse</span> ($12k): Lay Low drops twice the heat and heals. Buy when heat becomes the problem.</li><li><span class="o">Lawyer</span> ($20k): RCMP losses halved.</li><li><span class="o">Laundromat</span> ($30k): $400 a day, forever, and it cools you down.</li><li><span class="o">Cop on the Payroll</span> ($45k, $300/day): half the RCMP stops.</li></ul><p>Assets with upkeep quit if you can\'t pay. Keep a cushion.</p>'
 +'<h3>TIERS</h3><p>Tier 2 and 3 unlock <span class="k">live</span> at 300 and 600 rep. New hoods, drugs and gear appear without restarting. At Tier 3 the clubs, rival dealers and hookups show up.</p>',
 mafia:'<h3>THE IDEA</h3><p>You\'re the boss. <span class="k">You never touch product.</span> Dealers earn, soldiers fight, you decide. Take Moncton hood by hood from five motorcycle clubs in 60 days.</p>'
 +'<h3>YOUR DAY</h3><div class="step"><b>1</b><span><span class="k">Empire</span>: post dealers to hoods you own (max 5 each). Keep <span class="k">1 soldier in every hood</span>; it halves raids, skims and attacks.</span></div><div class="step"><b>2</b><span><span class="k">Crew &amp; Biz</span>: hire when you can cover a couple of days of upkeep. Dealers pay for themselves in about 4 days.</span></div><div class="step"><b>3</b><span><span class="k">Launder</span> dirty cash into clean (20% fee).</span></div><div class="step"><b>4</b><span>Pay <span class="k">The Family</span> with clean cash. The vig runs every day.</span></div><div class="step"><b>5</b><span><span class="o">End Day</span>. Crews earn, heat moves, the clubs move.</span></div>'
@@ -1015,7 +1090,7 @@ const SEASON_FX={
   quiet:{name:'Quiet Streets',tag:'😌 Quiet',desc:'Nothing happening. Heat decays twice as fast for 5 days.',decay:2}
 };
 const CAREER_ASSETS=[
-  {id:'burner',name:'Burner Phones',cost:2500,desc:'A dealer tip every single day'},
+  {id:'burner',name:'Burner Phones',cost:2500,desc:'A dealer tip every day; calling ahead is free and unlimited'},
   {id:'runner',name:'Runner',cost:6000,upkeep:150,desc:'+150 carry capacity'},
   {id:'safehouse',name:'Safehouse',cost:12000,desc:'Lay Low: 2x heat drop, +20 HP. Unlocks the stash'},
   {id:'lawyer',name:'Lawyer on Retainer',cost:20000,desc:'RCMP cash & product losses halved'},
@@ -1036,7 +1111,7 @@ function checkSeason(){
   if(G.day<=G.season*30)return false;
   const sEarned=G.seasonEarned,sDeals=G.seasonDeals;G.season++;G.seasonEarned=0;G.seasonDeals=0;
   const keys=Object.keys(SEASON_FX);const k=keys[rndI(0,keys.length-1)];const fx=SEASON_FX[k];G.seasonFx=k;G.seasonFxDays=5;
-  market=genMarket();playNews();
+  market=genMarket();recordNotes(G.location,market,'seen');playNews();
   addLog('<span class="text-yellow">📅 Season '+(G.season-1)+' over. '+fx.tag+' for the next 5 days.</span>');
   showModal('<h2>📅 SEASON '+(G.season-1)+' OVER</h2><p style="font-size:14px">Earned '+fmt(sEarned)+' in '+sDeals+' deals.<br>Net worth '+fmt(G.cash+G.bank-G.debt)+'. Rep '+Math.round(G.rep)+'.</p><p style="color:var(--yellow);font-family:\'Press Start 2P\',monospace;font-size:9px">'+fx.tag.toUpperCase()+'</p><p style="font-size:14px;color:var(--text-dim)">'+fx.desc+'</p><div class="modal-buttons"><button class="btn w-full" onclick="hideModal()">NEXT SEASON</button></div>');
   updateUI();return true;
