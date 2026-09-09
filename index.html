@@ -32,10 +32,11 @@ body::after{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:r
 .diff-btns{display:flex;gap:8px;width:100%;max-width:280px}
 .diff-btn{flex:1;background:none;border:2px solid var(--border);color:var(--text-dim);font-family:'Press Start 2P',monospace;font-size:8px;padding:10px 4px;cursor:pointer;text-align:center;transition:all 0.1s}
 .diff-btn.selected{border-color:var(--green);color:var(--green);background:rgba(51,255,51,0.1)}.diff-btn:active{transform:scale(0.97)}
-.stats-bar{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:2px;padding:6px 8px;background:var(--panel);border-bottom:2px solid var(--border);flex-shrink:0}
+.stats-bar{display:grid;grid-template-columns:1fr 1fr 1fr 1fr 58px;gap:2px;padding:6px 8px;background:var(--panel);border-bottom:2px solid var(--border);flex-shrink:0}
+/* the 5th column is empty: it keeps the DAY / HOODS values clear of the fixed radio + mute icons */
 .stat{text-align:center;font-size:14px}.stat-label{font-family:'Press Start 2P',monospace;font-size:6px;color:var(--text-dim);display:block;margin-bottom:2px}
 .stat-val{font-weight:bold}.stat-val.cash{color:var(--green)}.stat-val.health{color:var(--cyan)}.stat-val.heat{color:var(--red)}.stat-val.day{color:var(--yellow)}
-.stats-bar2{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:2px;padding:4px 8px;background:var(--panel2);border-bottom:1px solid var(--border);flex-shrink:0}
+.stats-bar2{display:grid;grid-template-columns:1fr 1fr 1fr 1fr 58px;gap:2px;padding:4px 8px;background:var(--panel2);border-bottom:1px solid var(--border);flex-shrink:0}
 .stat2{text-align:center;font-size:13px}.stat2 .stat-label{font-size:6px}
 .loc-header{padding:8px 12px;background:var(--panel2);border-bottom:1px solid var(--border);flex-shrink:0;display:flex;justify-content:space-between;align-items:center}
 .loc-name{font-family:'Press Start 2P',monospace;font-size:11px;color:var(--yellow)}.loc-vibe{font-size:14px;color:var(--text-dim)}
@@ -167,12 +168,14 @@ html.low-hp .stat-val.health{animation:hpFlash 0.5s infinite}
     <div class="stat"><span class="stat-label">HEALTH</span><span class="stat-val health" id="s-health">100</span></div>
     <div class="stat"><span class="stat-label">HEAT</span><span class="stat-val heat" id="s-heat">0</span></div>
     <div class="stat"><span class="stat-label">DAY</span><span class="stat-val day" id="s-day">1/30</span></div>
+    <div></div>
   </div>
   <div class="stats-bar2">
     <div class="stat2"><span class="stat-label" id="l-bank">BANK</span><span id="s-bank">$0</span></div>
     <div class="stat2"><span class="stat-label" id="l-debt">DEBT</span><span class="text-red" id="s-debt">$5,500</span></div>
     <div class="stat2"><span class="stat-label" id="l-rep">REP</span><span class="text-orange" id="s-rep">0</span></div>
     <div class="stat2"><span class="stat-label" id="l-inv">PACK</span><span id="s-inv">0/100</span></div>
+    <div></div>
   </div>
   <div class="loc-header">
     <span class="loc-name" id="s-loc">Lewisville</span>
