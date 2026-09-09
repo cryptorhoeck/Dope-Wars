@@ -1,5 +1,6 @@
-const CACHE_NAME = 'dopewars-v4';
-const ASSETS = ['./', './index.html', './manifest.json', './icons/icon-192.png', './icons/icon-512.png'];
+const CACHE_NAME = 'dopewars-v5';
+const ASSETS = ['./', './index.html', './manifest.json', './icons/icon-192.png', './icons/icon-512.png',
+  './lib/Tone.js', './fonts/fonts.css', './fonts/press-start-2p-latin.woff2', './fonts/vt323-latin.woff2'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(ASSETS)));

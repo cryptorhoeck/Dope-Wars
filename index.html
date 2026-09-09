@@ -10,7 +10,7 @@
 <link rel="manifest" href="./manifest.json">
 <link rel="apple-touch-icon" href="./icons/icon-192.png">
 <title>Dope Wars: Moncton</title>
-<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+<link href="./fonts/fonts.css" rel="stylesheet">
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{--green:#33ff33;--dim-green:#1a8a1a;--red:#ff4444;--yellow:#ffcc00;--cyan:#00ccff;--orange:#ff8800;--bg:#0a0a0a;--panel:#111;--panel2:#1a1a1a;--border:#2a2a2a;--text:#ccc;--text-dim:#666;--safe-top:env(safe-area-inset-top,0px);--safe-bottom:env(safe-area-inset-bottom,0px)}
@@ -102,7 +102,7 @@ html.low-hp .stat-val.health{animation:hpFlash 0.5s infinite}
 .gang-card .gang-btn:active{background:var(--orange);color:var(--bg)}
 .gang-card .gang-btn:disabled{opacity:0.3;pointer-events:none}
 </style>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+<script src="./lib/Tone.js"></script>
 </head>
 <body>
 <button class="mute-btn" id="mute-btn" onclick="toggleMute()">🔊</button>
@@ -592,9 +592,12 @@ function gameOver(died){
 function gs(l,v,neg){return '<div class="go-stat"><span class="label">'+l+'</span><span class="value '+(neg?'negative':'')+'">'+v+'</span></div>'}
 
 function saveHS(name,nw,diff,days){let s=JSON.parse(localStorage.getItem('dw_scores')||'[]');s.push({name,nw,diff,days,date:new Date().toLocaleDateString()});s.sort((a,b)=>b.nw-a.nw);s=s.slice(0,20);localStorage.setItem('dw_scores',JSON.stringify(s));postScore(name,nw,diff,days)}
-// Leaderboard hook: same-origin POST to the self-hosted API. Fails silently when
-// offline, on GitHub Pages, or anywhere the API is not running.
-function postScore(name,nw,diff,days){try{const score=Math.round(nw);if(!(score>0)||!/^https?:$/.test(location.protocol))return;fetch('/api/scores',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:String(name).slice(0,20),score,diff,days}),keepalive:true}).catch(()=>{})}catch(e){}}
+// Leaderboard hook. In the browser it POSTs to the same origin (/api/scores).
+// Inside the Android app the page is served from the APK, so it posts to the
+// home server directly. Fails silently when offline or when no API is running.
+const LEADERBOARD_HOME='https://dopewarsmoncton.tail8174d5.ts.net';
+function leaderboardBase(){try{return (window.Capacitor&&window.Capacitor.isNativePlatform&&window.Capacitor.isNativePlatform())?LEADERBOARD_HOME:''}catch(e){return ''}}
+function postScore(name,nw,diff,days){try{const score=Math.round(nw);if(!(score>0)||!/^https?:$/.test(location.protocol))return;fetch(leaderboardBase()+'/api/scores',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:String(name).slice(0,20),score,diff,days}),keepalive:true}).catch(()=>{})}catch(e){}}
 function showScores(){const s=JSON.parse(localStorage.getItem('dw_scores')||'[]');let h='';if(s.length===0)h='<div style="padding:40px;color:var(--text-dim);text-align:center">No scores yet!</div>';
   else s.forEach((e,i)=>{h+='<div class="score-entry"><span class="score-rank">#'+(i+1)+'</span><span class="score-name">'+e.name+' <span style="font-size:12px;color:var(--text-dim)">('+e.diff+')</span></span><span class="score-cash">'+fmt(e.nw)+'</span></div>'});
   $('scores-list').innerHTML=h;showScreen('scores-screen');
@@ -907,7 +910,7 @@ function playHighScore(){if(!sfxOk())return;const notes=['C4','D4','E4','G4','A4
 
 $('mute-btn').textContent=sfxMuted?'🔇':'🔊';
 updateTitleBtns();
-if('serviceWorker' in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>{});
+if('serviceWorker' in navigator&&!leaderboardBase())navigator.serviceWorker.register('./sw.js').catch(()=>{}); // no SW inside the Android app: files are already local
 </script>
 </body>
 </html>
