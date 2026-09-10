@@ -17,7 +17,10 @@
 html,body{height:100%;background:var(--bg);color:var(--text);font-family:'VT323',monospace;font-size:18px;overflow:hidden;touch-action:manipulation;-webkit-tap-highlight-color:transparent;user-select:none}
 body{display:flex;flex-direction:column;padding-top:var(--safe-top);padding-bottom:var(--safe-bottom)}
 body::after{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.06) 2px,rgba(0,0,0,0.06) 4px);pointer-events:none;z-index:9999}
-.screen{display:none;flex-direction:column;height:100%;overflow-y:auto;overflow-x:hidden}.screen.active{display:flex}
+.screen{display:none;flex-direction:column;flex:1;min-height:0;overflow-y:auto;overflow-x:hidden}.screen.active{display:flex}
+.stat2.tap{cursor:pointer;border-bottom:1px dotted var(--text-dim)}.stat2.tap:active{background:rgba(51,255,51,0.08)}
+.inv-row{display:grid;grid-template-columns:1fr auto auto;gap:4px 10px;align-items:baseline;padding:6px 0;border-bottom:1px solid var(--border);font-size:15px;text-align:left}
+.inv-row .n{font-family:'Press Start 2P',monospace;font-size:8px;color:var(--text)}.inv-row .q{color:var(--yellow)}.inv-row .p{text-align:right;min-width:90px}.inv-row .sub{grid-column:1/4;font-size:12px;color:var(--text-dim)}
 .screen::-webkit-scrollbar{width:4px}.screen::-webkit-scrollbar-track{background:var(--bg)}.screen::-webkit-scrollbar-thumb{background:var(--dim-green)}
 #title-screen{justify-content:center;align-items:center;gap:20px;padding:20px;background:radial-gradient(ellipse at center,#111 0%,#0a0a0a 70%)}
 .title-logo{font-family:'Press Start 2P',monospace;font-size:24px;color:var(--green);text-shadow:0 0 20px rgba(51,255,51,0.4),3px 3px 0 #0a5a0a;text-align:center;line-height:1.8;animation:flicker 4s infinite}
@@ -186,7 +189,8 @@ html.low-hp .stat-val.health{animation:hpFlash 0.5s infinite}
   <button class="btn" onclick="startGame()">START HUSTLING</button>
   <button class="btn red small" style="margin-top:8px;max-width:280px" onclick="showScreen('title-screen')">BACK</button>
 </div>
-<div id="game-screen" class="screen">
+<!-- Shared HUD: shown on every in-game screen, hidden on title / setup / game over -->
+<div id="hud" style="display:none;flex-shrink:0">
   <div class="stats-bar">
     <div class="stat"><span class="stat-label">CASH</span><span class="stat-val cash" id="s-cash">$2,000</span></div>
     <div class="stat"><span class="stat-label">HEALTH</span><span class="stat-val health" id="s-health">100</span></div>
@@ -198,13 +202,15 @@ html.low-hp .stat-val.health{animation:hpFlash 0.5s infinite}
     <div class="stat2"><span class="stat-label" id="l-bank">BANK</span><span id="s-bank">$0</span></div>
     <div class="stat2"><span class="stat-label" id="l-debt">DEBT</span><span class="text-red" id="s-debt">$5,500</span></div>
     <div class="stat2"><span class="stat-label" id="l-rep">REP</span><span class="text-orange" id="s-rep">0</span></div>
-    <div class="stat2"><span class="stat-label" id="l-inv">PACK</span><span id="s-inv">0/100</span></div>
+    <div class="stat2 tap" id="inv-cell" onclick="showInventory()"><span class="stat-label" id="l-inv">PACK</span><span id="s-inv">0/100</span></div>
     <div></div>
   </div>
   <div class="loc-header">
     <span class="loc-name" id="s-loc">Lewisville</span>
     <span class="loc-vibe" id="s-vibe">Quiet suburban</span>
   </div>
+</div>
+<div id="game-screen" class="screen">
   <div id="weapon-bar" class="weapon-info" style="display:none"></div>
   <div class="actions" id="action-grid">
     <button class="action-btn" onclick="showTravel()"><span class="icon">🚶</span>Travel</button>
@@ -335,7 +341,7 @@ const EVENTS=[
 ];
 const DIFF={easy:{cashM:1.5,debtM:.7,rcmpM:.6,mugM:.5,heatM:.7,int:.03,priceM:.85},normal:{cashM:1,debtM:1,rcmpM:1,mugM:1,heatM:1,int:.05,priceM:1},hard:{cashM:.7,debtM:1.3,rcmpM:1.5,mugM:1.5,heatM:1.4,int:.08,priceM:1.15}};
 
-const GAME_VERSION='2.3.0'; // bump with every release; keep android-app versionName in step
+const GAME_VERSION='2.3.1'; // bump with every release; keep android-app versionName in step
 let G={},market={},bankQV=0,loanQV=0,travelDest=null,selTier=1,selMode='classic';
 const MODE_DESC={classic:'The original. Pick a tier, beat the clock, bank the most cash.',career:'One long life. No clock. Climb from runner to kingpin, buy assets, retire rich or die trying.',mafia:'Run the city. Hire crews, take hoods, wash money, and fight the MCs. 60 days.'};
 function dayLeft(){return !G.maxDays||G.day<=G.maxDays}
@@ -350,7 +356,30 @@ function stashT(){return Object.values(G.stash).reduce((s,v)=>s+v,0)}
 function getLoc(id){return LOCATIONS.find(l=>l.id===id)}
 function dm(){return DIFF[G.diff]}
 
-function showScreen(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));$(id).classList.add('active');if(id==='title-screen'){updateTitleBtns();stopBeat();stopHeartbeat();playVinylCrackle();checkForUpdate()}else{stopVinylCrackle()}if(id==='gameover-screen'){stopBeat();stopHeartbeat()}}
+// Screens that show the shared HUD (stats + location) above them.
+const HUD_SCREENS=new Set(['game-screen','travel-screen','market-screen','bank-screen','loan-screen','heal-screen','shop-screen','stash-screen','gang-screen','notebook-screen','empire-screen','crew-screen']);
+function showScreen(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));$(id).classList.add('active');
+  const inGame=HUD_SCREENS.has(id)||(id==='help-screen'&&helpReturn==='game-screen');$('hud').style.display=inGame&&G&&G.mode?'':'none';
+  if(id==='title-screen'){updateTitleBtns();stopBeat();stopHeartbeat();playVinylCrackle();checkForUpdate()}else{stopVinylCrackle()}if(id==='gameover-screen'){stopBeat();stopHeartbeat()}}
+// Tap PACK in the HUD: what you're carrying, what you paid, what it's worth here.
+function showInventory(){
+  if(!G||!G.mode)return;
+  if(G.mode==='mafia'){showEmpire();return}
+  const ids=Object.keys(G.inv||{}).filter(id=>G.inv[id]>0);
+  let h='<h2>🎒 ON YOU</h2><div style="display:flex;justify-content:space-between;font-size:14px;color:var(--text-dim);margin-bottom:6px"><span>Cash <span class="text-green">'+fmt(G.cash)+'</span></span><span>Bank '+fmt(G.bank)+'</span><span>Pack <span class="text-yellow">'+invT()+'/'+G.invCap+'</span></span></div>';
+  if(!ids.length)h+='<p style="color:var(--text-dim)">Nothing in the pack. Hit Buy / Sell.</p>';
+  let worth=0,paid=0;
+  ids.forEach(id=>{const d=DRUGS.find(x=>x.id===id);const q=G.inv[id];const cb=G.costBasis[id]||0;const m=market&&market[id];const here=m?m.price:null;
+    if(here!=null)worth+=here*q;paid+=cb*q;
+    const diff=here!=null&&cb?here-cb:null;const cls=diff==null?'':diff>0?'text-green':diff<0?'text-red':'';
+    h+='<div class="inv-row"><span class="n">'+d.name+'</span><span class="q">×'+q+'</span><span class="p '+cls+'">'+(here!=null?fmt(here):'<span style="color:var(--text-dim)">no buyer</span>')+'</span><span class="sub">paid '+(cb?fmt(cb):'?')+' each'+(diff!=null?' · '+(diff>=0?'+':'')+fmt(diff)+' each here · '+(diff>=0?'+':'')+fmt(diff*q)+' total':'')+'</span></div>'});
+  if(ids.length)h+='<div style="display:flex;justify-content:space-between;font-size:14px;margin-top:8px"><span style="color:var(--text-dim)">Paid '+fmt(paid)+'</span><span>Worth here <b class="'+(worth>=paid?'text-green':'text-red')+'">'+fmt(worth)+'</b></span></div>';
+  const st=stashT();if(G.stashOn||st>0)h+='<div style="font-size:13px;color:var(--text-dim);margin-top:8px">📦 Stash house: '+st+' units'+(st?' ('+Object.keys(G.stash).map(id=>DRUGS.find(x=>x.id===id).name+' '+G.stash[id]).join(', ')+')':'')+'</div>';
+  if(G.weapon){const w=WEAPONS.find(x=>x.id===G.weapon);h+='<div style="font-size:13px;color:var(--orange);margin-top:4px">🔫 '+w.name+' ('+w.desc+')</div>'}
+  if(G.mode==='career'&&G.assets&&G.assets.length)h+='<div style="font-size:13px;color:var(--cyan);margin-top:4px">🏠 '+G.assets.map(id=>CAREER_ASSETS.find(a=>a.id===id).name).join(', ')+'</div>';
+  h+='<div class="modal-buttons"><button class="btn w-full" onclick="hideModal()">CLOSE</button></div>';
+  showModal(h);
+}
 // --- Version & update check ---
 // Asks the home server what the newest version is. Web players get a reload
 // that drops the service-worker cache; app players get the APK download.

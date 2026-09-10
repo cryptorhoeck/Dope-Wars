@@ -4,6 +4,10 @@ The version number lives in `index.html` as `GAME_VERSION` and is shown on the
 title screen. The Android APK's `versionName` matches it. The newest section
 here is what the game and the landing page show as "what's new".
 
+## v2.3.1 — 2026-09-09
+- The stats header (cash, health, heat, day, bank, debt, rep, pack, hood) now stays on screen on every in-game page: travel, market, bank, notebook, empire and the rest.
+- Tap PACK in the header to see what you're carrying: each drug, quantity, what you paid, the price where you're standing, and the profit or loss. Stash, weapon and assets listed too. In Mafia the same cell is HOODS and opens the Empire screen.
+
 ## v2.3.0 — 2026-09-09
 - Dealer accounts: LOGIN / REGISTER on the title screen. One handle and password, any device. No email, nothing outside the home server.
 - Scores post under your handle with a ✓. High Scores now shows this device, then everyone, plus a DEALERS board ranking every registered dealer by their best runs.
