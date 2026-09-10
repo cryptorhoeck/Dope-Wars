@@ -4,6 +4,12 @@ The version number lives in `index.html` as `GAME_VERSION` and is shown on the
 title screen. The Android APK's `versionName` matches it. The newest section
 here is what the game and the landing page show as "what's new".
 
+## v2.3.0 — 2026-09-09
+- Dealer accounts: LOGIN / REGISTER on the title screen. One handle and password, any device. No email, nothing outside the home server.
+- Scores post under your handle with a ✓. High Scores now shows this device, then everyone, plus a DEALERS board ranking every registered dealer by their best runs.
+- Cloud saves: logged-in dealers' games sync to the server after every day. Newest save wins, so you can switch between phone and browser mid-run.
+- FEEDBACK button on the title screen and in the Menu: bug, idea or other, straight to the boss.
+
 ## v2.2.1 — 2026-09-09
 - Fix: tapping 📞 on the Travel screen in the Android app opened the travel menu instead of placing the call.
 - Travel-method buttons now span the full width.

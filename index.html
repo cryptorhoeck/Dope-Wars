@@ -156,7 +156,8 @@ html.low-hp .stat-val.health{animation:hpFlash 0.5s infinite}
   <button class="btn cyan" id="btn-continue" onclick="continueGame()" style="display:none">CONTINUE</button>
   <button class="btn" onclick="newGame()">NEW GAME</button>
   <button class="btn yellow" onclick="showScores()">HIGH SCORES</button>
-  <button class="btn small" style="border-color:var(--text-dim);color:var(--text-dim)" onclick="showHelp(null,'title-screen')">HOW TO PLAY</button>
+  <div style="display:flex;gap:8px;width:100%;max-width:280px"><button class="btn small" style="border-color:var(--text-dim);color:var(--text-dim);flex:1" onclick="showHelp(null,'title-screen')">HOW TO PLAY</button><button class="btn small" style="border-color:var(--text-dim);color:var(--text-dim);flex:1" onclick="showFeedback()">FEEDBACK</button></div>
+  <button class="btn cyan small" id="btn-account" onclick="showAccount()">LOGIN / REGISTER</button>
   <button class="btn yellow small" id="update-badge" style="display:none;animation:flicker 3s infinite" onclick="showUpdate()">⬆ UPDATE AVAILABLE</button>
   <div id="version-line" style="font-size:13px;color:var(--text-dim);letter-spacing:1px"></div>
 </div>
@@ -287,8 +288,8 @@ html.low-hp .stat-val.health{animation:hpFlash 0.5s infinite}
 <div id="gameover-screen" class="screen"></div>
 <div id="scores-screen" class="screen">
   <div class="screen-header"><button class="back-btn" onclick="showScreen('title-screen')">←</button><span class="screen-title">HIGH SCORES</span></div>
-  <div class="score-tabs"><button class="score-tab sel" onclick="showScores('classic')">CLASSIC</button><button class="score-tab" onclick="showScores('career')">CAREER</button><button class="score-tab" onclick="showScores('mafia')">MAFIA</button></div>
-  <div style="padding:16px" id="scores-list"></div>
+  <div class="score-tabs"><button class="score-tab sel" onclick="showScores('classic')">CLASSIC</button><button class="score-tab" onclick="showScores('career')">CAREER</button><button class="score-tab" onclick="showScores('mafia')">MAFIA</button><button class="score-tab" onclick="showScores('dealers')">DEALERS</button></div>
+  <div style="flex:1;overflow-y:auto"><div style="padding:16px" id="scores-list"></div><div style="padding:0 16px 24px" id="scores-online"></div></div>
 </div>
 <div class="modal-overlay" id="modal"><div class="modal" id="modal-content"></div></div>
 <div class="modal-overlay" id="qty-modal"><div class="modal" id="qty-modal-content"></div></div>
@@ -334,7 +335,7 @@ const EVENTS=[
 ];
 const DIFF={easy:{cashM:1.5,debtM:.7,rcmpM:.6,mugM:.5,heatM:.7,int:.03,priceM:.85},normal:{cashM:1,debtM:1,rcmpM:1,mugM:1,heatM:1,int:.05,priceM:1},hard:{cashM:.7,debtM:1.3,rcmpM:1.5,mugM:1.5,heatM:1.4,int:.08,priceM:1.15}};
 
-const GAME_VERSION='2.2.1'; // bump with every release; keep android-app versionName in step
+const GAME_VERSION='2.3.0'; // bump with every release; keep android-app versionName in step
 let G={},market={},bankQV=0,loanQV=0,travelDest=null,selTier=1,selMode='classic';
 const MODE_DESC={classic:'The original. Pick a tier, beat the clock, bank the most cash.',career:'One long life. No clock. Climb from runner to kingpin, buy assets, retire rich or die trying.',mafia:'Run the city. Hire crews, take hoods, wash money, and fight the MCs. 60 days.'};
 function dayLeft(){return !G.maxDays||G.day<=G.maxDays}
@@ -758,7 +759,7 @@ function gameOver(died,how){
   if(G._over)return;G._over=true; // never score the same run twice
   stopBeat();stopHeartbeat();hideModal();hideQM();
   if(died&&!how)how='died';
-  const mode=G.mode||'classic';localStorage.removeItem(saveKey(mode));
+  const mode=G.mode||'classic';localStorage.removeItem(saveKey(mode));clearTimeout(cloudTimer);cloudDelete(mode);
   if(mode==='mafia'){mafiaGameOver(how);return}
   const assetVal=mode==='career'?G.assets.reduce((s,id)=>s+Math.round(CAREER_ASSETS.find(a=>a.id===id).cost*.5),0):0;
   const nw=G.cash+G.bank-G.debt+assetVal,surv=G.maxDays?Math.min(G.day,G.maxDays):G.day;
@@ -797,18 +798,71 @@ function saveHS(name,nw,diff,days,mode,died){mode=mode||'classic';let s=JSON.par
 // home server directly. Fails silently when offline or when no API is running.
 const LEADERBOARD_HOME='https://dopewarsmoncton.tail8174d5.ts.net';
 function leaderboardBase(){try{return (window.Capacitor&&window.Capacitor.isNativePlatform&&window.Capacitor.isNativePlatform())?LEADERBOARD_HOME:''}catch(e){return ''}}
-function postScore(name,nw,diff,days,mode,died){try{const score=Math.round(nw);if(!(score>0)||!/^https?:$/.test(location.protocol))return;fetch(leaderboardBase()+'/api/scores',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:String(name).slice(0,20),score,diff,days,mode:mode||'classic',died:!!died}),keepalive:true}).catch(()=>{})}catch(e){}}
-function showScores(mode){mode=mode||'classic';document.querySelectorAll('.score-tab').forEach((t,i)=>t.classList.toggle('sel',['classic','career','mafia'][i]===mode));
-  const s=JSON.parse(localStorage.getItem('dw_scores')||'[]').filter(e=>(e.mode||'classic')===mode).sort((a,b)=>b.nw-a.nw);let h='';if(s.length===0)h='<div style="padding:40px;color:var(--text-dim);text-align:center">No '+mode+' scores yet!</div>';
-  else s.forEach((e,i)=>{h+='<div class="score-entry"><span class="score-rank">#'+(i+1)+'</span><span class="score-name">'+e.name+' <span style="font-size:12px;color:var(--text-dim)">('+e.diff+(e.died?', died':'')+(mode!=='classic'&&e.days?', '+e.days+'d':'')+')</span></span><span class="score-cash">'+fmt(e.nw)+'</span></div>'});
-  $('scores-list').innerHTML=h;showScreen('scores-screen');
+function postScore(name,nw,diff,days,mode,died){try{const score=Math.round(nw);if(!(score>0)||!/^https?:$/.test(location.protocol))return;fetch(leaderboardBase()+'/api/scores',{method:'POST',headers:apiHeaders(true),body:JSON.stringify({name:String(name).slice(0,20),score,diff,days,mode:mode||'classic',died:!!died}),keepalive:true}).catch(()=>{})}catch(e){}}
+function showScores(mode){mode=mode||'classic';document.querySelectorAll('#scores-screen .score-tab').forEach((t,i)=>t.classList.toggle('sel',['classic','career','mafia','dealers'][i]===mode));
+  const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  if(mode==='dealers'){$('scores-list').innerHTML='<div class="hint">Every registered dealer, ranked by their best runs combined. Log in so your scores count.</div><div id="dealers-list" style="color:var(--text-dim)">Loading…</div>';$('scores-online').innerHTML='';showScreen('scores-screen');
+    apiFetch('/api/dealers').then(r=>r.json()).then(list=>{const el=$('dealers-list');if(!el)return;if(!list.length){el.innerHTML='<div style="padding:20px;text-align:center">No dealers yet. Register from the title screen.</div>';return}
+      el.innerHTML=list.map((d,i)=>{const b=d.best||{};const bm=m=>b[m]?fmt(b[m].score):'–';return '<div class="score-entry" style="grid-template-columns:30px 1fr"><span class="score-rank">#'+(i+1)+'</span><div><div class="score-name" style="color:'+(AUTH&&AUTH.handle===d.handle?'var(--green)':'var(--text)')+'">'+esc(d.handle)+' <span style="font-size:12px;color:var(--text-dim)">'+d.games+' games, '+d.deaths+' deaths</span></div><div style="font-size:12px;color:var(--text-dim)">Classic '+bm('classic')+' · Career '+bm('career')+' · Mafia '+bm('mafia')+'</div></div></div>'}).join('')}).catch(()=>{const el=$('dealers-list');if(el)el.textContent='Could not reach the server.'});
+    return}
+  const s=JSON.parse(localStorage.getItem('dw_scores')||'[]').filter(e=>(e.mode||'classic')===mode).sort((a,b)=>b.nw-a.nw);let h='<div class="hint">This device</div>';if(s.length===0)h+='<div style="padding:20px;color:var(--text-dim);text-align:center">No '+mode+' scores yet!</div>';
+  else s.forEach((e,i)=>{h+='<div class="score-entry"><span class="score-rank">#'+(i+1)+'</span><span class="score-name">'+esc(e.name)+' <span style="font-size:12px;color:var(--text-dim)">('+e.diff+(e.died?', died':'')+(mode!=='classic'&&e.days?', '+e.days+'d':'')+')</span></span><span class="score-cash">'+fmt(e.nw)+'</span></div>'});
+  $('scores-list').innerHTML=h;$('scores-online').innerHTML='<div class="hint">All dealers</div><div style="color:var(--text-dim)">Loading…</div>';showScreen('scores-screen');
+  apiFetch('/api/scores?mode='+mode).then(r=>r.json()).then(list=>{if(!Array.isArray(list))throw 0;let o='<div class="hint">All dealers · ✓ = logged in</div>';if(!list.length)o+='<div style="padding:12px;color:var(--text-dim);text-align:center">Nothing posted yet.</div>';
+    list.forEach((e,i)=>{o+='<div class="score-entry"><span class="score-rank">#'+(i+1)+'</span><span class="score-name" style="color:'+(AUTH&&e.verified&&AUTH.handle===e.name?'var(--green)':'var(--text)')+'">'+esc(e.name)+(e.verified?' <span style="color:var(--green);font-size:11px">✓</span>':'')+' <span style="font-size:12px;color:var(--text-dim)">('+esc(e.diff||'')+(e.died?', died':'')+(mode!=='classic'&&e.days?', '+e.days+'d':'')+')</span></span><span class="score-cash">'+fmt(e.score)+'</span></div>'});
+    $('scores-online').innerHTML=o}).catch(()=>{$('scores-online').innerHTML='<div class="hint">All dealers</div><div style="color:var(--text-dim)">Offline. Connect to see everyone\'s scores.</div>'});
 }
+// === ACCOUNTS, CLOUD SAVES, FEEDBACK ===
+// A dealer account lives on the home server. The token is kept in localStorage.
+let AUTH=null;try{AUTH=JSON.parse(localStorage.getItem('dw_auth')||'null')}catch(e){AUTH=null}
+function apiHeaders(json){const h={};if(json)h['Content-Type']='application/json';if(AUTH&&AUTH.token)h['Authorization']='Bearer '+AUTH.token;return h}
+function apiFetch(path,opts){opts=opts||{};opts.headers=Object.assign(apiHeaders(!!opts.body),opts.headers||{});if(opts.body&&typeof opts.body!=='string')opts.body=JSON.stringify(opts.body);if(typeof fetch!=='function'||!/^https?:$/.test(location.protocol))return Promise.reject(new Error('offline'));try{return fetch(leaderboardBase()+path,opts)}catch(e){return Promise.reject(e)}}
+function setAuth(a){AUTH=a;try{if(a)localStorage.setItem('dw_auth',JSON.stringify(a));else localStorage.removeItem('dw_auth')}catch(e){}updateAccountUI()}
+function updateAccountUI(){const b=$('btn-account');if(b)b.textContent=AUTH?'👤 '+AUTH.handle:'LOGIN / REGISTER';const vl=$('version-line');if(vl)vl.textContent='v'+GAME_VERSION+(leaderboardBase()?' · app':'')+(AUTH?' · '+AUTH.handle:'')}
+function showAccount(){
+  if(AUTH){showModal('<h2>👤 '+AUTH.handle.replace(/</g,'&lt;')+'</h2><p style="font-size:14px;color:var(--text-dim)">Your scores post under this name and your saves sync to the server.</p><div class="modal-buttons"><button class="btn cyan w-full" onclick="hideModal();syncFromCloud(true)">SYNC SAVES NOW</button><button class="btn w-full" onclick="hideModal();showScores(\'dealers\')">DEALERS BOARD</button><button class="btn red small w-full" onclick="doLogout()">LOG OUT</button><button class="btn small w-full" style="border-color:var(--text-dim);color:var(--text-dim)" onclick="hideModal()">CLOSE</button></div>');return}
+  showModal('<h2>👤 DEALER ACCOUNT</h2><p style="font-size:13px;color:var(--text-dim)">One account, every device. Scores under your name, saves that follow you.</p><input class="setup-input" id="acc-handle" maxlength="16" placeholder="HANDLE" autocomplete="username" style="font-size:20px;margin-bottom:8px"><input class="setup-input" id="acc-pass" type="password" maxlength="200" placeholder="PASSWORD" autocomplete="current-password" style="font-size:20px"><div id="acc-msg" style="font-size:13px;color:var(--red);min-height:18px;margin-top:6px"></div><div class="modal-buttons"><button class="btn w-full" onclick="doAuth(\'login\')">LOG IN</button><button class="btn cyan w-full" onclick="doAuth(\'register\')">REGISTER</button><button class="btn red small w-full" onclick="hideModal()">CANCEL</button></div><p style="font-size:11px;color:var(--text-dim);margin-top:8px">Handle: 3-16 letters, numbers or _. Password: 6+ characters. Forgot it? Ask the boss to reset it.</p>');
+  setTimeout(()=>{const h=$('acc-handle');if(h)h.focus()},50);
+}
+function doAuth(kind){
+  const handle=($('acc-handle').value||'').trim(),password=$('acc-pass').value||'';const msg=$('acc-msg');
+  if(!/^[A-Za-z0-9_]{3,16}$/.test(handle)){msg.textContent='Handle: 3-16 letters, numbers or _';return}
+  if(password.length<6){msg.textContent='Password: at least 6 characters';return}
+  msg.style.color='var(--text-dim)';msg.textContent=kind==='login'?'Logging in…':'Creating account…';
+  apiFetch('/api/'+kind,{method:'POST',body:{handle,password}}).then(r=>r.json().then(j=>({ok:r.ok,j}))).then(({ok,j})=>{
+    if(!ok||!j.token){msg.style.color='var(--red)';msg.textContent=(j&&j.error)||'Could not sign in';return}
+    setAuth({token:j.token,handle:j.user.handle});hideModal();playUnlock();syncFromCloud(false);
+  }).catch(()=>{msg.style.color='var(--red)';msg.textContent='Cannot reach the server. Are you online?'});
+}
+function doLogout(){hideModal();try{apiFetch('/api/logout',{method:'POST'}).catch(()=>{})}catch(e){}setAuth(null)}
+// Cloud saves: newest wins. Local saves carry savedAt; the server keeps one per mode.
+let cloudTimer=null;
+function cloudPush(mode){if(!AUTH||!/^https?:$/.test(location.protocol))return;clearTimeout(cloudTimer);cloudTimer=setTimeout(()=>{const s=loadSave(mode);if(!s)return;apiFetch('/api/save/'+mode,{method:'PUT',body:s}).catch(()=>{})},1500)}
+function cloudDelete(mode){if(!AUTH||!/^https?:$/.test(location.protocol))return;try{apiFetch('/api/save/'+mode,{method:'DELETE'}).catch(()=>{})}catch(e){}}
+function syncFromCloud(loud){
+  if(!AUTH||!/^https?:$/.test(location.protocol))return Promise.resolve();
+  return apiFetch('/api/saves').then(r=>{if(r.status===401){setAuth(null);throw new Error('logged out')}return r.json()}).then(async j=>{
+    if(!j||!j.saves)return;let pulled=0,pushed=0;
+    for(const m of ['classic','career','mafia']){const remote=j.saves[m];const local=loadSave(m);const lt=local?(local.savedAt||0):0,rt=remote?(remote.savedAt||0):0;
+      if(remote&&rt>lt){const r=await apiFetch('/api/save/'+m);if(r.ok){const s=(await r.json()).save;if(s&&s.G){localStorage.setItem(saveKey(m),JSON.stringify(s));pulled++}}}
+      else if(local&&lt>rt){await apiFetch('/api/save/'+m,{method:'PUT',body:local}).catch(()=>{});pushed++}}
+    updateTitleBtns();
+    if(loud)showModal('<h2>☁️ SYNCED</h2><p style="font-size:14px">'+(pulled?pulled+' save'+(pulled>1?'s':'')+' pulled from the server. ':'')+(pushed?pushed+' pushed up. ':'')+(!pulled&&!pushed?'Everything already matches.':'')+'</p><div class="modal-buttons"><button class="btn w-full" onclick="hideModal()">OK</button></div>');
+  }).catch(()=>{if(loud)showModal('<h2>☁️ SYNC FAILED</h2><p style="font-size:14px;color:var(--text-dim)">Could not reach the server. Try again when you\'re online.</p><div class="modal-buttons"><button class="btn w-full" onclick="hideModal()">OK</button></div>')});
+}
+// Feedback: bug / idea / other, from the title screen or the in-game Menu.
+let fbType='bug';
+function showFeedback(){fbType='bug';showModal('<h2>💬 FEEDBACK</h2><div class="diff-btns" style="margin:0 auto 8px"><button class="diff-btn selected" data-fb="bug" onclick="pickFb(this)">BUG</button><button class="diff-btn" data-fb="idea" onclick="pickFb(this)">IDEA</button><button class="diff-btn" data-fb="other" onclick="pickFb(this)">OTHER</button></div><textarea id="fb-text" maxlength="1000" placeholder="What happened, or what you\'d like to see…" style="width:100%;min-height:90px;background:var(--panel2);border:1px solid var(--green);color:var(--text);font-family:VT323,monospace;font-size:17px;padding:8px;resize:vertical"></textarea><div id="fb-msg" style="font-size:13px;color:var(--text-dim);min-height:18px;margin-top:4px">'+(AUTH?'Sending as '+AUTH.handle.replace(/</g,'&lt;'):'Sending anonymously. Log in to put your name on it.')+'</div><div class="modal-buttons"><button class="btn w-full" onclick="sendFeedback()">SEND</button><button class="btn red small w-full" onclick="hideModal()">CANCEL</button></div>')}
+function pickFb(el){document.querySelectorAll('[data-fb]').forEach(b=>b.classList.remove('selected'));el.classList.add('selected');fbType=el.dataset.fb}
+function sendFeedback(){const t=($('fb-text').value||'').trim();const msg=$('fb-msg');if(t.length<3){msg.style.color='var(--red)';msg.textContent='Say a little more than that.';return}
+  const where=(leaderboardBase()?'app ':'web ')+GAME_VERSION+(G&&G.mode?' / '+G.mode+' day '+G.day:'');msg.style.color='var(--text-dim)';msg.textContent='Sending…';
+  apiFetch('/api/feedback',{method:'POST',body:{type:fbType,message:t,where,name:AUTH?undefined:(G&&G.name)||undefined}}).then(r=>r.json().then(j=>({ok:r.ok,j}))).then(({ok,j})=>{if(ok){hideModal();playUnlock();showModal('<h2>💬 GOT IT</h2><p style="font-size:14px">Thanks. It\'s in the box.</p><div class="modal-buttons"><button class="btn w-full" onclick="hideModal()">OK</button></div>')}else{msg.style.color='var(--red)';msg.textContent=(j&&j.error)||'Could not send.'}}).catch(()=>{msg.style.color='var(--red)';msg.textContent='Cannot reach the server. Try again online.'})}
 // One save slot per mode. The pre-2.1 single slot 'dw_save' becomes the classic slot.
 function saveKey(mode){return 'dw_save_'+(mode||'classic')}
 (function migrateSave(){try{const o=localStorage.getItem('dw_save');if(o&&!localStorage.getItem('dw_save_classic')){localStorage.setItem('dw_save_classic',o)}if(o)localStorage.removeItem('dw_save')}catch(e){}})();
 function saveGame(manual){
-  try{localStorage.setItem(saveKey(G.mode),JSON.stringify({G:G,market:market}));
-  if(manual)addLog('<span class="text-green">💾 Game saved.</span>')}catch(e){}
+  try{localStorage.setItem(saveKey(G.mode),JSON.stringify({G:G,market:market,savedAt:Date.now()}));
+  if(manual)addLog('<span class="text-green">💾 Game saved'+(AUTH?' (syncing)':'')+'.</span>');cloudPush(G.mode)}catch(e){}
 }
 function loadSave(mode){try{const s=localStorage.getItem(saveKey(mode));return s?JSON.parse(s):null}catch(e){return null}}
 function savedModes(){return ['classic','career','mafia'].filter(m=>!!loadSave(m))}
@@ -831,13 +885,13 @@ function continueGame(mode){
   updateUI();showScreen('game-screen');playBeat();
 }
 function newGame(){showSetup()}
-function showSetup(){selTier=1;$('mode-desc').textContent=MODE_DESC[selMode];renderTierSelector();showScreen('setup-screen')}
+function showSetup(){selTier=1;$('mode-desc').textContent=MODE_DESC[selMode];renderTierSelector();const ni=$('name-input');if(AUTH){ni.value=AUTH.handle.toUpperCase().slice(0,12);ni.disabled=true;ni.style.opacity='.7'}else{ni.disabled=false;ni.style.opacity='';if(ni.value&&ni.value.length>12)ni.value=''}showScreen('setup-screen')}
 function updateTitleBtns(){$('btn-continue').style.display=hasSave()?'':'none'}
 function exitMenu(){
   let extra='';
   if(G.mode==='career'&&G.day>=30&&G.debt<=0)extra='<button class="btn cyan w-full" onclick="hideModal();confirmRetire()">🏝️ RETIRE</button>';
   else if(G.mode==='career')extra='<p style="font-size:12px;color:var(--text-dim)">Retire unlocks after day 30 with no debt.</p>';
-  showModal('<h2>🚪 MENU</h2><p style="font-size:14px;color:var(--text-dim)">Your game is auto-saved.</p><div class="modal-buttons"><button class="btn yellow w-full" onclick="hideModal();showHelp(G.mode,\'game-screen\')">📖 HOW TO PLAY</button>'+extra+'<button class="btn w-full" onclick="doExit()">EXIT TO MENU</button><button class="btn red small w-full" onclick="hideModal()">CANCEL</button></div>')}
+  showModal('<h2>🚪 MENU</h2><p style="font-size:14px;color:var(--text-dim)">Your game is auto-saved'+(AUTH?' and synced':'')+'.</p><div class="modal-buttons"><button class="btn yellow w-full" onclick="hideModal();showHelp(G.mode,\'game-screen\')">📖 HOW TO PLAY</button><button class="btn small w-full" style="border-color:var(--text-dim);color:var(--text-dim)" onclick="hideModal();showFeedback()">💬 FEEDBACK / BUG</button>'+extra+'<button class="btn w-full" onclick="doExit()">EXIT TO MENU</button><button class="btn red small w-full" onclick="hideModal()">CANCEL</button></div>')}
 function doExit(){hideModal();saveGame();stopBeat();stopHeartbeat();showScreen('title-screen')}
 function getScoutTag(loc){
   if(invT()===0)return '';
@@ -1067,7 +1121,8 @@ classic:'<h3>THE GOAL</h3><p>End the last day with the most <span class="k">net 
 +'<h3>MONEY</h3><ul><li>You start owing the <span class="w">loan shark $5,500</span> and the interest compounds every day. Pay it down early; it is the biggest drain in the game.</li><li>The <span class="c">Bank</span> pays nothing but muggers can\'t touch it. Bank your profit before walking into a rough hood.</li><li>Cheap product: crack in <span class="o">Ackmin Court</span>, meth in <span class="o">Cornhill</span>. Rich buyers: <span class="o">Lewisville</span>, later <span class="o">Fox Creek</span> and <span class="o">Kingswood</span>.</li><li>On Easy and Normal the travel screen shows scout tags (🔥 HOT, 💰 DEAL) and the market shows profit vs what you paid.</li></ul>'
 +'<h3>DANGER</h3><ul><li><span class="w">Heat</span> builds every time you sell. High heat means RCMP stops. <span class="k">Lay Low</span> burns a day to drop it. A cab has no travel risk.</li><li>Muggings happen in dangerous hoods. Carry less cash there.</li><li>Weapons and bigger bags are at <span class="o">Champlain Mall</span>, the only shop. Weapons raise your odds when you fight RCMP.</li><li><span class="w">0 HP is game over.</span> Corner stores heal cheap, the hospital heals fully.</li></ul>'
 +'<h3>NOTEBOOK &amp; CALLING AHEAD</h3><ul><li>Every price you see is written in your <span class="k">📓 Notebook</span>. BY DRUG shows the cheapest and dearest place you\'ve seen each one; BY HOOD shows what each hood had. Prices roll every visit, but hoods have habits: old notes are still a decent guide.</li><li>On the Travel screen, <span class="c">📞</span> next to a hood <span class="k">calls ahead</span>: for $100 you see the exact prices that will be waiting there tomorrow. Two calls a day. Cheaper than a wasted trip.</li></ul>'
-+'<h3>REP</h3><p>Every sale builds rep. 150 unlocks the stash house, 300 unlocks Tier 2, 600 unlocks Tier 3 with gangs, rival dealers and the Kingpin drugs.</p>',
++'<h3>REP</h3><p>Every sale builds rep. 150 unlocks the stash house, 300 unlocks Tier 2, 600 unlocks Tier 3 with gangs, rival dealers and the Kingpin drugs.</p>'
++'<h3>DEALER ACCOUNT</h3><p><span class="k">LOGIN / REGISTER</span> on the title screen. Pick a handle and a password, once. Then your scores post under your name with a ✓, you appear on the <span class="k">DEALERS</span> board, and your saves follow you to any phone or browser you log in on. Not required to play; without it, scores stay on this device.</p>',
 career:'<h3>THE IDEA</h3><p>One dealer, one life, <span class="k">no clock</span>. You climb from runner to kingpin in a single game and stop when you choose. Die and the career is over for good.</p>'
 +'<h3>HOW IT ENDS</h3><ul><li><span class="k">Retire</span> from the Menu any time after day 30 with <span class="k">zero debt</span>. Score is cash + bank + half of what you paid for assets.</li><li><span class="w">Death is permanent.</span> The score still counts, tagged "died".</li></ul>'
 +'<h3>WHAT REPLACES THE CLOCK</h3><ul><li><span class="w">Collectors.</span> From day 30, while you owe the shark, they come every 10 days: pay 25% of the debt or take a beating and lose product. <span class="k">Kill the debt first.</span></li><li><span class="w">Notoriety.</span> Heat decays slower the bigger you get: two thirds at 300 rep, less than half at 600. Lay Low more as you climb.</li><li><span class="c">Seasons.</span> Every 30 days a season ends. You get a summary, prices reshuffle, and a 5-day event hits: a crackdown, a drought, a flood of cheap product, a festival for party drugs, or quiet streets. Read it and adapt.</li></ul>'
@@ -1435,8 +1490,8 @@ function playVictory(){if(!sfxOk())return;ch1s.triggerAttackRelease('C4','2n');c
 function playHighScore(){if(!sfxOk())return;const notes=['C4','D4','E4','G4','A4','C5'];notes.forEach((note,i)=>{setTimeout(()=>{if(sfxOk())pluck.triggerAttack(note)},i*70)});setTimeout(()=>{if(!sfxOk())return;ch1s.triggerAttackRelease('C4','2n');ch2s.triggerAttackRelease('E4','2n');ch3s.triggerAttackRelease('G4','2n')},notes.length*70+50)}
 
 $('mute-btn').textContent=sfxMuted?'🔇':'🔊';
-$('version-line').textContent='v'+GAME_VERSION+(leaderboardBase()?' · app':'');
-updateTitleBtns();checkForUpdate(true);
+updateAccountUI();
+updateTitleBtns();checkForUpdate(true);syncFromCloud(false);
 if('serviceWorker' in navigator&&!leaderboardBase())navigator.serviceWorker.register('./sw.js').catch(()=>{}); // no SW inside the Android app: files are already local
 </script>
 </body>
