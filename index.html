@@ -339,9 +339,9 @@ const EVENTS=[
 {msg:"Your gang backed you up in a fight — free heal +20 HP.",fx:'gangheal',tier:3},
 {msg:"RCMP task force set up specifically to catch you. Heat spiking hard.",fx:'heat',v:25,tier:3},
 ];
-const DIFF={easy:{cashM:1.5,debtM:.7,rcmpM:.6,mugM:.5,heatM:.7,int:.03,priceM:.85},normal:{cashM:1,debtM:1,rcmpM:1,mugM:1,heatM:1,int:.05,priceM:1},hard:{cashM:.7,debtM:1.3,rcmpM:1.5,mugM:1.5,heatM:1.4,int:.08,priceM:1.15}};
+const DIFF={easy:{startCash:5000,cashM:1.5,debtM:.7,rcmpM:.6,mugM:.5,heatM:.7,int:.03,priceM:.85},normal:{startCash:3000,cashM:1,debtM:1,rcmpM:1,mugM:1,heatM:1,int:.05,priceM:1},hard:{startCash:1000,cashM:.7,debtM:1.3,rcmpM:1.5,mugM:1.5,heatM:1.4,int:.08,priceM:1.15}};
 
-const GAME_VERSION='2.3.2'; // bump with every release; keep android-app versionName in step
+const GAME_VERSION='2.3.3'; // bump with every release; keep android-app versionName in step
 let G={},market={},bankQV=0,loanQV=0,travelDest=null,selTier=1,selMode='classic';
 const MODE_DESC={classic:'The original. Pick a tier, beat the clock, bank the most cash.',career:'One long life. No clock. Climb from runner to kingpin, buy assets, retire rich or die trying.',mafia:'Run the city. Hire crews, take hoods, wash money, and fight the MCs. 60 days.'};
 function dayLeft(){return !G.maxDays||G.day<=G.maxDays}
@@ -461,7 +461,7 @@ function reallyStartGame(){
   if(mode==='mafia'){mafiaInit(name,diff);return}
   const tier=mode==='career'?1:selTier;
   const mdays=mode==='career'?0:tier===3?60:tier===2?45:30;
-  G={mode,name,diff,day:1,maxDays:mdays,cash:Math.round(3000*d.cashM),debt:Math.round(5500*d.debtM),bank:0,health:100,maxHP:100,heat:0,rep:0,
+  G={mode,name,diff,day:1,maxDays:mdays,cash:d.startCash,debt:Math.round(5500*d.debtM),bank:0,health:100,maxHP:100,heat:0,rep:0,
     location:'lewisville',inv:{},stash:{},costBasis:{},invCap:100,weapon:null,stashOn:false,boughtUp:[],boughtWp:[],
     freeT:false,bus2x:false,tier:tier,unlockedTier:getUnlockedTier(),maxTier:3,
     gang:null,gangRep:0,enemies:[],gangMission:null,gangMissionDays:0,

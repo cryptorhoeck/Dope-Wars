@@ -4,6 +4,9 @@ The version number lives in `index.html` as `GAME_VERSION` and is shown on the
 title screen. The Android APK's `versionName` matches it. The newest section
 here is what the game and the landing page show as "what's new".
 
+## v2.3.3 — 2026-09-09
+- Starting cash is now set per difficulty: Easy $5,000, Normal $3,000, Hard $1,000. Debt unchanged ($3,850 / $5,500 / $7,150).
+
 ## v2.3.2 — 2026-09-09
 - Starting cash raised from $2,000 to $3,000 in Classic and Career (Easy $4,500, Hard $2,100). The loan shark still wants $5,500.
 
